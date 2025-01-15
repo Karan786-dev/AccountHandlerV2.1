@@ -1,0 +1,10 @@
+rotating.proxyempire.io:9000:TdYBOkpolmVBBHXC:wifi;;;;
+rotating.proxyempire.io:9001:TdYBOkpolmVBBHXC:wifi;;;;
+rotating.proxyempire.io:9002:TdYBOkpolmVBBHXC:wifi;;;;
+rotating.proxyempire.io:9003:TdYBOkpolmVBBHXC:wifi;;;;
+rotating.proxyempire.io:9004:TdYBOkpolmVBBHXC:wifi;;;;
+rotating.proxyempire.io:9005:TdYBOkpolmVBBHXC:wifi;;;;
+rotating.proxyempire.io:9006:TdYBOkpolmVBBHXC:wifi;;;;
+rotating.proxyempire.io:9007:TdYBOkpolmVBBHXC:wifi;;;;
+rotating.proxyempire.io:9008:TdYBOkpolmVBBHXC:wifi;;;;
+rotating.proxyempire.io:9009:TdYBOkpolmVBBHXC:wifi;;;;
