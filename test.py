@@ -1,15 +1,30 @@
-from pyrogram import Client
-import asyncio
+from pyrogram import Client, idle
+from pytgcalls import PyTgCalls
 
+# Your session string
+sessionString = "BQAx4pMATh-f0ovlqgNCTjA-pSBW6duTkqce8zM7VtEn8ObuX7L56rE6DmOXpvH62fH9ezpxaDS9u3GAG_UgOyZn_NpCsvPrO3cH_SAa2bAoefonLOWvq6-ywZWDl0gyLggdaKf7mL4DrBv6Z1sTMw07KsnDJZp5yv360JRwMV1cZf8EvKoBu3PB0YpIiD0mEuXbgfHbdu7eR-Is3Oe2Wr7ZqC7miZc82TjSkzC0qinmjgpjNMiBOZJTtJsh4T0vg8LkitALPqpkRM_T49h_u4fU4T9VmCsqtoPe4nxrgBZ2YwVf9TmNKdIW-WxowpUyL7cGjP-0tAWRjDOEyMh6L3dYSpqWYQAAAABXhc0CAA"
 
-session_string = "BQAf70YAZtDQ7hfBYugYwQd3iwetDHLvulR4dkVNk9WyYWOHnHZEFBNdjvI3NLm7eME4alyf-6VR9rs6ouHBfzVUlkNIucn4L0a22hOoUvI-ZdJLHCCvC3tEMvzUB_ju7ZmSuzN_8eTNeGOBMPJ6Ql5h_y-sJ2XFN3i8NwSJ_Ya9vJZuJyS9s6ipY-647CXDNAhJEQFlmNAGIrH1BR3sCOdeS4xGaAKXB3X3S78JDU0eO_7v1naboGAHhLHM0pcBAHBsl7B9d419CQGEqgetnZghkNXGhbjNHphBQB7D5_S0rVH2Ju8kK1C_wjSvMFyyJAQztsYBHaQNjvSwPF-gCher_QAAAABXhc0CAA"
+# Initialize Pyrogram Client
+client = Client("sessions/LandSession", session_string=sessionString)
 
-client = Client(name="MySession",session_string=session_string)
+# Initialize PyTgCalls
+app = PyTgCalls(client)
 
+@client.on_message()
+async def onMessage(_,message):
+    print(message.text)
+
+@client.on_raw_update()
+async def handler(_, update, users, chats):
+    print("Raw update received:", update)
 
 async def main():
-    await client.connect()
-    print(await client.send_message("me","Hello Karan"))
-    await client.disconnect()
+    await client.start()
+    await app.start()
+    print("Client and PyTgCalls started.")
+    await client.send_message("me","Hello World")
+    await idle()
 
-asyncio.run(main())
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())

@@ -50,15 +50,34 @@ async def changeCountofTask(_,query:CallbackQuery):
     param = query.data.split(maxsplit=1)[1].split()
     task = param[0]
     channelID = int(param[1])
-    numberAllowed = [1,5,10,20,30,40,50,100,300]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/{'changeViewsCount' if task == "views" else "changeReactionCount"} {i} {channelID}") for i in numberAllowed],3))
-    await query.message.edit("<b>👀 Select The Count per post:</b>",reply_markup=buttons)
+    numberAllowed = [1,5,10,20,30,40,50,100,300,"Manual"]
+    if task == "views": command = "/changeViewsCount"
+    elif task == "reactions": command = "/changeReactionCount"
+    elif task == "voice": command = "/changeVoiceCount"
+    else: return await query.answer("Task not found.")
+    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"{command} {i} {channelID}") for i in numberAllowed],3))
+    await query.message.edit("<b>👀 Select The Count:</b>",reply_markup=buttons)
     
+@Client.on_callback_query(filters.regex(r'^/changeVoiceCount'))
+async def changeVoiceCount(_:Client,query:CallbackQuery):
+    param = query.data.split(maxsplit=1)[1].split()
+    count = int(param[0])
+    channelID = int(param[1])
+    if count == 'Manual': 
+        await query.message.reply("<b>Please enter count of work</b>")
+        return createResponse(query.from_user.id,"manuallyChangeAutoServiceCount",{"task":"voice","channelID":channelID})
+    Channels.update_one({"channelID":channelID},{"$set":{"voiceCount":count}})
+    text , keyboard = await manageChannelServices(channelID)
+    await query.message.edit(text,reply_markup=keyboard)
+
 @Client.on_callback_query(filters.regex(r'^/changeViewsCount'))
 async def changeViewsCount(_,query:CallbackQuery):
     param = query.data.split(maxsplit=1)[1].split()
     count = int(param[0])
     channelID = int(param[1])
+    if count == 'Manual': 
+        await query.message.reply("<b>Please enter count of work</b>")
+        return createResponse(query.from_user.id,"manuallyChangeAutoServiceCount",{"task":"views","channelID":channelID})
     Channels.update_one({"channelID":channelID},{"$set":{"viewCount":count}})
     text , keyboard = await manageChannelServices(channelID)
     await query.message.edit(text,reply_markup=keyboard)
@@ -68,6 +87,9 @@ async def changeReactionCount(_,query:CallbackQuery):
     param = query.data.split(maxsplit=1)[1].split()
     count = int(param[0])
     channelID = int(param[1])
+    if count == 'Manual': 
+        await query.message.reply("<b>Please enter count of work</b>")
+        return createResponse(query.from_user.id,"manuallyChangeAutoServiceCount",{"task":"reactions","channelID":channelID})
     Channels.update_one({"channelID":channelID},{"$set":{"reactionsCount":count}})
     text , keyboard = await manageChannelServices(channelID)
     await query.message.edit(text,reply_markup=keyboard)
@@ -90,6 +112,19 @@ async def changeDelayTime(_,query:CallbackQuery):
         "60 = 1 Account Per Minute",
         reply_markup=buttons
     )
+    
+@Client.on_callback_query(filters.regex(r'^/changeVoiceDelayConfirm'))
+async def changeVoiceDelay(_:Client,query:CallbackQuery):
+    param = query.data.split(maxsplit=1)[1].split()
+    delay = param[0]
+    channelID = int(param[1])
+    if delay == 'Manual': 
+        await query.message.reply("<b>Please type delay between work</b>\n\n<b>Random</b>: To Randomize the delay enter minimum and maximum delay like 1-10")
+        return createResponse(query.from_user.id,"manuallyChangeAutoServiceDelay",{"task":"voice","channelID":channelID})
+    delay = int(delay)
+    Channels.update_one({"channelID":channelID},{"$set":{"voiceRestTime":[delay]}})
+    text , keyboard = await manageChannelServices(channelID)
+    await query.message.edit(text,reply_markup=keyboard)
     
 @Client.on_callback_query(filters.regex(r'^/changeViewsDelayConfirm'))
 async def changeViewsDelay(_,query:CallbackQuery):

@@ -1,4 +1,5 @@
 from pyrogram import Client , filters
+from pytgcalls import filters as callFilters
 from config import USERBOT_SESSION
 import asyncio 
 from pytgcalls import PyTgCalls
@@ -157,15 +158,31 @@ class OrderUserbotManager:
                 elif task["type"] == "joinVoiceChat":
                     chatID = task["chatID"]
                     inviteLink = task.get("inviteLink",None)
+                    duration = task.get("duration",0)
                     try:
                         app = PyTgCalls(client)
                         await app.start()
                         await app.play(chat_id=chatID)
+                        print(f"{phone_number} joined the voice call and will leave after {duration if duration else "INFINITY"}s")
+                        if duration:
+                            def leaveVc():
+                                asyncio.create_task(app.leave_call(chatID))
+                                print(f"{phone_number} Leaved the call after {duration}s")
+                            timer = Timer(duration,leaveVc)
+                            timer.start()
                     except Exception as e:
                         if "[400 CHANNEL_INVALID]" in str(e):
                             await client.join_chat(inviteLink)
                             await self.add_task(phone_number,task)
                         else: print(str(e))
+                elif task["type"] == "leaveVoiceChat":
+                    chatID = task["chatID"]
+                    try:
+                        app = PyTgCalls(client)
+                        await app.leave_call(chatID)
+                        print(f"{phone_number} had leaved the call.")
+                    except Exception as e:
+                        print("Error While Leaving Channel: "+str(e))
                 elif task["type"] == "reactPost":
                     postLink = task["postLink"]
                     parsed_url = urlparse(postLink)
@@ -282,7 +299,8 @@ class OrderUserbotManager:
             print("Sync Bot Trying to join Channels")
             channelsLink = []
             for i in channels: channelsLink.append(f"@{i.get("username")}" if i.get("username",False) else i.get("inviteLink"))
-            from syncerBotHandler import messageHandler  
+            from syncerBotHandler import messageHandler , voiceChatHandler
+            client.add_handler(MessageHandler(voiceChatHandler,filters=filters.video_chat_started))
             client.add_handler(MessageHandler(messageHandler))
             for channel in channelsLink:
                 chat = await client.get_chat(channel)

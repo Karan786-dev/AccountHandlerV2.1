@@ -25,11 +25,23 @@ async def manuallyChangeAutoServiceDelay(_,message:Message):
     text , keyboard = await manageChannelServices(channelID)
     await message.reply(text,reply_markup=keyboard)
     
+#Manually Change Count of Auto Services
+@Client.on_message(filters.private)
+async def manuallyChangeAutoServiceCount(_,message:Message):
+    if not checkIfTarget(message.from_user.id,"manuallyChangeAutoServiceCount"): raise ContinuePropagation()
+    delayCount = message.text
+    responsesData = getResponse(message.from_user.id).get("payload")
+    channelID = responsesData.get("channelID")
+    task = responsesData.get("task")
+    if task == "views": query = {"$set":{"viewCount":delayCount}}
+    elif task == "reactions": query = {"$set":{"reactionsCount":delayCount}}
+    elif task == "voice": query = {"$set": {"voiceCount":delayCount}}
+    Channels.update_one({"channelID":int(channelID)},query)
+    text , keyboard = await manageChannelServices(channelID)
+    await message.reply(text,reply_markup=keyboard)
 
 
-
-
-#Add a channel 
+#Add a channel
 @Client.on_message(filters.private)
 async def getChannelID(_,message:Message):
     if not checkIfTarget(message.from_user.id,"addChannelLink"): raise ContinuePropagation()
