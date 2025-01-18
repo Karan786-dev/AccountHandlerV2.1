@@ -1,10 +1,10 @@
 from pymongo import MongoClient  # type: ignore
-from config import MONGO_URL
+from config import MONGO_URL , DB_NAME
 
 
 try:
     client = MongoClient(MONGO_URL)
-    mydb = client['AccountHandlerBotV2']
+    mydb = client[DB_NAME]
     Admin = mydb['admin']
     Users = mydb['users']
     Accounts = mydb['accounts']
