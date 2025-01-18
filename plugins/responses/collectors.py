@@ -123,7 +123,6 @@ async def getChannelID(_,message:Message):
     await _.edit_message_text(chat_id=message.from_user.id,message_id=waitingMsg.id,text="<b>Channel Added Into Database</b>")
     text , keyboard = await viewChannelManage(channelID)
     await message.reply(text,reply_markup=keyboard)
-    await UserbotManager.addHandlersToSyncBot(needToJoin=True)
     
     
 # Function to change Notification Of Channel

@@ -40,7 +40,7 @@ class OrderUserbotManager:
                 "password": selected_proxy["password"],
                 "scheme": "socks5"
             }
-        client = Client(f"/{phone_number}",session_string=sessionString,phone_number=phone_number,proxy=proxy)
+        client = Client(name=f"/{phone_number}",session_string=sessionString,phone_number=phone_number,proxy=proxy)
         oldSessionFile = USERBOT_SESSION+f"/{phone_number}"+'.session-journal'
         if os.path.exists(oldSessionFile):
             os.remove(oldSessionFile)
