@@ -35,7 +35,7 @@ async def messageHandler(_,message:Message):
         tasksArray.append(UserbotManager.bulk_order(userbots,{
             "type":"reactPost",
             "postLink": postLink,
-            "restTime":float(reactRestTime),
+            "restTime":reactRestTime,
             "taskPerformCount": int(reactionCount),
             "emoji":reactionEmojis,
             "inviteLink": inviteLink
