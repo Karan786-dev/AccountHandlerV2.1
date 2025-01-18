@@ -1,4 +1,4 @@
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup , Reaction
 from database import Channels, Admin, Accounts
 from orderAccounts import UserbotManager
 from functions import convertTime, paginateArray
@@ -199,7 +199,6 @@ async def selectReactionEmoji(channelID,):
     syncBot: Client = UserbotManager.getSyncBotClient()
     chatInfo = await syncBot.get_chat(channelID)
     reactionEmojiArray = chatInfo.available_reactions.reactions
-    print(reactionEmojiArray)
     channelData = Channels.find_one({"channelID":int(channelID)})
     added_emojis = channelData.get("reactionsType", [])
     emoji_list = ",".join(added_emojis) if added_emojis else "No emojis added yet."
@@ -212,7 +211,7 @@ async def selectReactionEmoji(channelID,):
         f"✅ <b>Currently Added Emojis:</b> <code>{emoji_list}</code>\n\n"
         "Choose emojis from the options below to customize your channel reactions."
     )
-    keyboardButton = paginateArray([InlineKeyboardButton(i,f"/toggleEmoji {i} {channelID}") for i in reactionEmojiArray],5)
+    keyboardButton = paginateArray([InlineKeyboardButton(i.emoji,f"/toggleEmoji {i.emoji} {channelID}") for i in reactionEmojiArray],5)
     keyboardButton.append([InlineKeyboardButton("🔙 Back", callback_data=f"/channelServices {channelID}")])
     return text , InlineKeyboardMarkup(keyboardButton)
     
