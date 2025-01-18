@@ -181,7 +181,11 @@ class OrderUserbotManager:
                     chatID = task["chatID"]
                     inviteLink = task.get("inviteLink",None)
                     duration = task.get("duration",0) 
-                    finalDuration = duration if not isinstance(duration,list) else random.randint(int(duration[0]),int(duration[1]))
+                    finalDuration =  0
+                    if not isinstance(duration,list): finalDuration = duration
+                    elif isinstance(duration,list) and len(duration) == 2: finalDuration = random.randint(int(duration[0]),int(duration[1]))
+                    elif isinstance(duration,list) and len(1): finalDuration = duration[0]
+                    else: finalDuration = duration
                     try:
                         app = PyTgCalls(client)
                         await app.start()
