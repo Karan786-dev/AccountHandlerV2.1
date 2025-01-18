@@ -207,7 +207,7 @@ class OrderUserbotManager:
                     except Exception as e:
                         print("Error While Leaving Channel: "+str(e))
                 elif task["type"] == "reactPost":
-                    postLink = task["postLink"]
+                    postLink = task["postLink"].replace("/c","")
                     parsed_url = urlparse(postLink)
                     path_segments = parsed_url.path.strip("/").split("/")
                     chatID = str(path_segments[0])
@@ -218,7 +218,6 @@ class OrderUserbotManager:
                     emojis = task['emoji'] 
                     emoji = random.choice(emojis)
                     res = False
-                    print(chatID)
                     try:
                         res = await client.send_reaction(chatID,messageID,emoji=emoji)
                     except Exception as e:
@@ -242,7 +241,7 @@ class OrderUserbotManager:
                         print(f"Userbot {phone_number} voted on {chatID} with {task['optionIndex']}")
                     except Exception as e: print(f"{phone_number} Failed To Vote: {str(e)}")
                 elif task['type'] == 'sendPhoto':
-                    photoLink = task['photoLink']
+                    photoLink = task['photoLink'].replace("/c","")
                     chatIDToDeliver = task['chatID']
                     chat_username, message_id = photoLink.split('/')[-2:]
                     message_id = int(message_id)
