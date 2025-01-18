@@ -9,7 +9,7 @@ import random
 from pyrogram.errors import *
 from pyrogram.raw.functions.messages import GetMessagesViews
 from database import Accounts , Channels
-from pyrogram.handlers import MessageHandler
+from pyrogram.handlers import MessageHandler , RawUpdateHandler
 from pyrogram.types import Message 
 from pyrogram.raw.types import InputPeerChannel , InputReportReasonSpam
 from pyrogram.raw.functions.messages import Report
@@ -158,17 +158,19 @@ class OrderUserbotManager:
                 elif task["type"] == "joinVoiceChat":
                     chatID = task["chatID"]
                     inviteLink = task.get("inviteLink",None)
-                    duration = task.get("duration",0)
+                    duration = task.get("duration",0) 
+                    finalDuration = duration if not isinstance(duration,list) else random.randint(int(duration[0]),int(duration[1]))
                     try:
                         app = PyTgCalls(client)
                         await app.start()
                         await app.play(chat_id=chatID)
-                        print(f"{phone_number} joined the voice call and will leave after {duration if duration else "INFINITY"}s")
-                        if duration:
+                        print(f"{phone_number} joined the voice call and will leave after {finalDuration if finalDuration else "INFINITY"}s")
+                        if finalDuration:
                             def leaveVc():
-                                asyncio.create_task(app.leave_call(chatID))
-                                print(f"{phone_number} Leaved the call after {duration}s")
-                            timer = Timer(duration,leaveVc)
+                                try:asyncio.create_task(app.leave_call(chatID))
+                                except Exception as e: pass
+                                print(f"{phone_number} Leaved the call after {finalDuration}s")
+                            timer = Timer(float(finalDuration),leaveVc)
                             timer.start()
                     except Exception as e:
                         if "[400 CHANNEL_INVALID]" in str(e):
@@ -254,7 +256,7 @@ class OrderUserbotManager:
         """Add a task to a userbot's queue."""
         if phone_number not in self.clients:
             print(f"Userbot {phone_number} not active. Starting...")
-            await self.start_client(task["session_string"], phone_number)
+            if not await self.start_client(task["session_string"], phone_number): return
 
         # Add task to the queue
         await self.task_queues[phone_number].put(task)
@@ -273,7 +275,7 @@ class OrderUserbotManager:
             taskLimit += 1
             
             rest_time = task.get("restTime", 0)
-            if isinstance(rest_time,list):rest_time = random.choice(rest_time)
+            if isinstance(rest_time,list):rest_time = random.randint(int(rest_time[0]),int(rest_time[1]))
             # Delay before executing the task
             if rest_time != 0:
                 print(f"Resting for {rest_time} seconds before processing task for {userbot["phone_number"]}")
@@ -300,8 +302,12 @@ class OrderUserbotManager:
             channelsLink = []
             for i in channels: channelsLink.append(f"@{i.get("username")}" if i.get("username",False) else i.get("inviteLink"))
             from syncerBotHandler import messageHandler , voiceChatHandler
-            client.add_handler(MessageHandler(voiceChatHandler,filters=filters.video_chat_started))
+            if not client:
+                print(f"{phone_number}  SyncBot Failed To Run")
+                # os.abort()
+                return
             client.add_handler(MessageHandler(messageHandler))
+            client.add_handler(RawUpdateHandler(voiceChatHandler))
             for channel in channelsLink:
                 chat = await client.get_chat(channel)
                 chatStatus = None

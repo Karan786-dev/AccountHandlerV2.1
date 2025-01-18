@@ -62,11 +62,11 @@ async def manageChannelServices(channelID):
         ],
         [
             InlineKeyboardButton("Delay", callback_data=f"/changeDelay voice {channelID}"),
-            InlineKeyboardButton("Join Count", callback_data=f"/changeJoinCount {channelID}"),
+            InlineKeyboardButton("Join Count", callback_data=f"/changeCount voice {channelID}"),
             InlineKeyboardButton('❎ Disable' if channelData.get('isVoiceEnabled') else '✅ Enable', callback_data=f"/toggle_voice {channelID}"),
         ],
         [
-            InlineKeyboardButton("Duration", callback_data=f"/changeDuration {channelID}"),    
+            InlineKeyboardButton("Duration", callback_data=f"/changeVoiceDuration {channelID}"),    
         ],
         [
             InlineKeyboardButton("🔙 Back", callback_data=f"/viewChannel {channelID}"),

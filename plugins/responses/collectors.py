@@ -10,6 +10,17 @@ from orderAccounts import UserbotManager
 from pyrogram.errors import *
 import re 
 
+#Manually Change Duration of Voice Chat
+@Client.on_message(filters.private)
+async def manuallyChangeVoiceDuration(_,message:Message):
+    if not checkIfTarget(message.from_user.id,"manuallyChangeVoiceDuration"): raise ContinuePropagation()
+    durationCountArray = message.text.split("-")
+    responsesData = getResponse(message.from_user.id).get("payload")
+    channelID = responsesData.get("channelID")
+    Channels.update_one({"channelID":int(channelID)},{"$set":{"voiceDuration":durationCountArray}})
+    text , keyboard = await manageChannelServices(channelID)
+    await message.reply(text,reply_markup=keyboard)
+
 #Manually Change Delay in Auto Services
 @Client.on_message(filters.private)
 async def manuallyChangeAutoServiceDelay(_,message:Message):

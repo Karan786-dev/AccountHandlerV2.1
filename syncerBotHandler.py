@@ -1,5 +1,6 @@
 from pyrogram import Client , filters , types
 from pyrogram.types import Message 
+from pyrogram.raw.types import UpdateGroupCall , GroupCallDiscarded
 from database import Channels , Accounts
 from orderAccounts import UserbotManager
 import random
@@ -22,7 +23,7 @@ async def messageHandler(_,message:Message):
         await UserbotManager.bulk_order(userbots,{
             "type":"viewPosts",
             "postLink": postLink,
-            "restTime":float(viewRestTime),
+            "restTime":viewRestTime,
             "taskPerformCount": int(viewCount),
             "inviteLink": inviteLink
         })
@@ -40,24 +41,30 @@ async def messageHandler(_,message:Message):
         })
     
         
-async def voiceChatHandler(client:Client, message:Message):
-    channelID = message.chat.id 
+async def voiceChatHandler(client:Client, update, users, chats):
+    if not isinstance(update,UpdateGroupCall): return
+    channelID = int("-100"+str(update.chat_id))  
     channelData = Channels.find_one({"channelID":int(channelID)})
     if not channelData: return 
-    chatUsername = message.chat.username 
+    if isinstance(update.call,GroupCallDiscarded): return
+    if update.call.participants_count and str(update.call.version) != "1": return
+    chatUsername = channelData.get("username",None)
     inviteLink = f"@{chatUsername}" if chatUsername else channelData.get("inviteLink")
     tasksData = channelData.get("services",[])
     if not len(tasksData):  return
     if ("voice_chat" in tasksData) and channelData.get("isVoiceEnabled",False):
         voiceRestTimes = channelData.get("voiceRestTime") 
-        voiceRestTimeArray = voiceRestTimes if not isinstance(voiceRestTimes,list) else voiceRestTimes.split(" ")
+        voiceRestTimeArray = voiceRestTimes if isinstance(voiceRestTimes,list) else [voiceRestTimes.split(" ")[0],voiceRestTimes.split(" ")[0]]
         voiceChatJoin = channelData.get("voiceCount") 
+        duration = channelData.get("voiceDuration")
         chatID = channelID if not chatUsername else chatUsername
         userbots = list(Accounts.find({}))
         await UserbotManager.bulk_order(userbots,{
             "type": "joinVoiceChat",
             "chatID": chatID,
-            "restTime": float(random.choice(voiceRestTimeArray)),
+            "restTime": voiceRestTimeArray,
             "taskPerformCount": int(voiceChatJoin),
-            "inviteLink": inviteLink
+            "inviteLink": inviteLink,
+            "duration":duration
         })
+
