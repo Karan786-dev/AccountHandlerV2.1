@@ -94,6 +94,7 @@ async def manuallyChangeAutoServiceCount(_,message:Message):
 async def getChannelID(_,message:Message):
     if not checkIfTarget(message.from_user.id,"addChannelLink"): raise ContinuePropagation()
     channelLink = message.text 
+    deleteResponse(message.from_user.id)
     if (not channelLink.startswith('https://t.me/')) and (not channelLink.startswith("@")) : return await message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
     syncBotData = Accounts.find_one({"syncBot":True})
     waitingMsg = await message.reply("<b>SyncBot trying to join channel.......</b>")
