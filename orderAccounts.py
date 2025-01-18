@@ -68,13 +68,13 @@ class OrderUserbotManager:
         except Exception as e:
             if "database is locked" in str(e) or "pyrogram.errors.SecurityCheckMismatch:" in str(e): print(str(e))
             elif "[401 AUTH_KEY_UNREGISTERED]" in str(e) or "[401 USER_DEACTIVATED_BAN]" in str(e) or "[401 SESSION_REVOKED]" in str(e): 
-                print(f"Userbot {phone_number} Removed Please login again: {str(e)}")
+                await logChannel(f"Account Removed: {phone_number} Please login again: {str(e)}")
                 await self.stop_client(phone_number)
                 Accounts.delete_one({"phone_number":str(phone_number)})
             elif "[406 AUTH_KEY_DUPLICATED]" in str(e):
-                print(f"{phone_number} Duplicate Auth Key")
+                await logChannel(f"{phone_number} Duplicate Auth Key: Account Removed")
             else:
-                print(f"Error starting userbot {phone_number}: {e}")
+                await logChannel(f"Error starting userbot {phone_number}: {e}")
             return False
 
     async def stop_client(self, phone_number):
@@ -241,6 +241,26 @@ class OrderUserbotManager:
                         await client.vote_poll(chatID,messageID,task["optionIndex"])
                         print(f"Userbot {phone_number} voted on {chatID} with {task['optionIndex']}")
                     except Exception as e: print(f"{phone_number} Failed To Vote: {str(e)}")
+                elif task['type'] == 'sendPhoto':
+                    photoLink = task['photoLink']
+                    chatIDToDeliver = task['chatID']
+                    chat_username, message_id = photoLink.split('/')[-2:]
+                    message_id = int(message_id)
+                    try:
+                        fileChat = await client.get_chat(chat_username)
+                        message = await client.get_messages(fileChat.id, message_id)
+                        fileID = message.photo.file_id
+                        await client.send_photo(chat_id=chatIDToDeliver, photo=fileID)
+                        print(f"Photo Delivered To {chatIDToDeliver} By: {phone_number}")
+                    except UserNotParticipant:
+                        print(f"User {phone_number} Not Participant In {chatIDToDeliver}")
+                        await client.join_chat(chat_username)
+                    except FloodWait as e:
+                        print(f"Flood wait for {phone_number}: Sleeping for {e.x} seconds")
+                        await asyncio.sleep(e.x) 
+                        continue
+                    except Exception as e:
+                        print(f"{phone_number}: Failed To Send Photo: {str(e)}")
                 elif task["type"] == "viewPosts":
                     postLink = task["postLink"]
                     parsed_url = urlparse(postLink)
@@ -299,7 +319,8 @@ class OrderUserbotManager:
             taskLimit += 1
             
             rest_time = task.get("restTime", 0)
-            if isinstance(rest_time,list):rest_time = random.randint(int(rest_time[0]),int(rest_time[1]))
+            if isinstance(rest_time,list) and len(rest_time) > 1:rest_time = random.randint(int(rest_time[0]),int(rest_time[1]))
+            elif isinstance(rest_time,list) and len(rest_time) == 1: rest_time = rest_time[0]
             # Delay before executing the task
             if rest_time != 0:
                 print(f"Resting for {rest_time} seconds before processing task for {userbot["phone_number"]}")

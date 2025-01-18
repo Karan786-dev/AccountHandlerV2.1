@@ -2,7 +2,7 @@ from pyrogram import Client , filters , ContinuePropagation
 from pyrogram.types import Message , InlineKeyboardMarkup , InlineKeyboardButton , CallbackQuery  , Chat
 from .responseFunctions import *
 from config import *
-from database import Accounts , Channels
+from database import Accounts , Channels , Users
 from datetime import datetime
 from functions import *
 from markups import *
@@ -10,6 +10,41 @@ from orderAccounts import UserbotManager
 from pyrogram.errors import *
 import re 
 
+
+#Function to broadcast
+@Client.on_message(filters.private)
+async def getBroadcastPost(_,message):
+    if not checkIfTarget(message.from_user.id,"askForBroadcast"): raise ContinuePropagation()
+    messageID = message.id 
+    messageFrom = message.from_user.id
+    usersData = list(Users.find({},{"userID":True}))
+    canSendInOneSecond = 20
+    sended = 0
+    await message.reply("<b>Sending broadcast.......</b>")
+    deleteResponse(messageFrom)
+    for i in usersData:
+        if canSendInOneSecond == sended:
+            await asyncio.sleep(1)
+            sended = 0
+        sended += 1
+        userID = i.get("userID")
+        try:
+            await _.copy_message(userID,messageFrom,messageID)
+        except Exception as e:
+            print(str(e))
+    await message.reply(f"<b>Broadcast has been delivered to: </b><code>{len(usersData)} Users</code>")
+    text, keyboard = adminPanel(message.from_user)
+    await message.reply(text, reply_markup=keyboard)
+    
+
+# Fucntion to grant access to user
+@Client.on_message(filters.private)
+async def getUserIDToGrantAccess(_,message):
+    if not checkIfTarget(message.from_user.id,"askUserIDForAccess"): raise ContinuePropagation()
+    userID = message.text 
+    if not is_number(userID):return await message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
+    text ,keyboard = await grantAccessMarkup(int(userID))
+    await message.reply(text,reply_markup=keyboard)
 
 
 #Manually Change Duration of Voice Chat
@@ -89,16 +124,6 @@ async def getChannelID(_,message:Message):
     await message.reply(text,reply_markup=keyboard)
     await UserbotManager.addHandlersToSyncBot(needToJoin=False)
     
-    
-
-# Fucntion to grant access to user
-@Client.on_message(filters.private)
-async def getUserIDToGrantAccess(_,message):
-    if not checkIfTarget(message.from_user.id,"askUserIDForAccess"): raise ContinuePropagation()
-    userID = message.text 
-    if not is_number(userID):return await message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    text ,keyboard = await grantAccessMarkup(int(userID))
-    await message.reply(text,reply_markup=keyboard)
     
 # Function to change Notification Of Channel
 @Client.on_message(filters.private)
@@ -292,6 +317,118 @@ async def askSpeedOfVoiceChatHandler(_,query):
         "restTime":float(seconds),
         "taskPerformCount": int(responseData.get("membersCount")),
         "inviteLink":responseData.get("inviteLink")
+    })
+    await query.message.reply(f"<b>✅ Task Executed: {len(userBots)} Accounts</b>")
+    
+#Function to get Photos
+@Client.on_message(filters.private)
+async def getPhotosToSent(_, message):
+    if not checkIfTarget(message.from_user.id, "photosToSent"):
+        raise ContinuePropagation()
+    photos = message.photo
+    if not photos:
+        return await message.reply("<b>⚠️ Invalid input:  Please send a valid photo</b>")
+    responseData = getResponse(message.from_user.id).get("payload", {})
+    photosArray = responseData.get("photos", [])
+    send_response = await _.send_photo(UPLOADING_CHANNEL, message.photo.file_id)
+    post_link = f"https://t.me/{send_response.chat.username}/{send_response.id}"
+    photosArray.append(post_link)
+    await message.reply(
+        f"<b>✅ Photo added to the list, Send another photo or Click 'Done'</b>",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Done", "/done")]])
+    )
+    deleteResponse(message.from_user.id)
+    createResponse(message.from_user.id, "photosToSent", {"photos": photosArray})
+    
+@Client.on_callback_query(filters.regex(r'^/done'))
+async def doneAddingPhotos(_,query):
+    if not checkIfTarget(query.from_user.id,"photosToSent"): raise ContinuePropagation()
+    photosArray = getResponse(query.from_user.id).get("payload").get("photos")
+    deleteResponse(query.from_user.id)
+    await query.message.reply(f"<b>✅ {len(photosArray)} Photos added to the list</b>")
+    await query.message.edit(f"<b>📝 Enter The Message/Feedbacks (separate them with '|')</b>",reply_markup=cancelKeyboard)
+    createResponse(query.from_user.id,"messageWithPhotos",{"photos":photosArray})
+
+@Client.on_message(filters.private)
+async def getMessageToSendWithPhotoHandler(_,message):
+    if not checkIfTarget(message.from_user.id,"messageWithPhotos"): raise ContinuePropagation()
+    try:
+        text = str(message.text)
+        textArray = text.split("|") if "|" in text else [text]
+        photosArray = getResponse(message.from_user.id).get("payload").get("photos")
+        await message.reply("📩 Send the username of the person you want to send.")
+        deleteResponse(message.from_user.id)
+        createResponse(message.from_user.id,"sendPhotoWithMessageChatID",{"text":textArray,"photos":photosArray})
+    except Exception as e:
+        raise e
+
+@Client.on_message(filters.private)
+async def getMessageDeliverIDWithPhotoHandler(_,message):
+    if not checkIfTarget(message.from_user.id,"sendPhotoWithMessageChatID"): raise ContinuePropagation
+    responseData = getResponse(message.from_user.id).get("payload")
+    chatID = message.text 
+    deleteResponse(message.from_user.id)
+    createResponse(message.from_user.id,"askForMessagesCountWithPhoto",{**responseData,"chatID":chatID})
+    numberAllowed = [2,10,20,30,40,50,100,300]
+    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/messagesCountWithPhoto {i}") for i in numberAllowed],3))
+    await message.reply("❓ How many messages do you want to send?",reply_markup=buttons)
+
+@Client.on_callback_query(filters.regex(r'^/messagesCountWithPhoto'))
+async def askForMessagesCountWithPhotoHandler(_,query):
+    if not checkIfTarget(query.from_user.id,"askForMessagesCountWithPhoto"): raise ContinuePropagation
+    responseData = getResponse(query.from_user.id).get("payload")
+    messagesCount = query.data.split(maxsplit=1)[1]
+    if (not is_number(messagesCount)) or (float(messagesCount) < 1): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
+    deleteResponse(query.from_user.id)
+    createResponse(query.from_user.id,"askForSpeedOfWorkWithPhoto",{**responseData,"messagesCount":int(messagesCount)})
+    numberAllowed = [0,1,5,10,25,50,60]
+    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/messagesSpeedWithPhoto {i}") for i in numberAllowed],3))
+    await query.message.edit(
+        "<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
+        "Instant = All The Message Comes in Instantly.\n"
+        "1 = Each 1 Second 1 Message\n"
+        "60 = Each 1 Minute 1 Message",
+        reply_markup=buttons
+    )
+
+@Client.on_callback_query(filters.regex(r'^/messagesSpeedWithPhoto'))
+async def askForSpeedOfWorkWithPhoto(_,query):
+    if not checkIfTarget(query.from_user.id,"askForSpeedOfWorkWithPhoto"): raise ContinuePropagation
+    responseData = getResponse(query.from_user.id).get("payload")
+    seconds = query.data.split(maxsplit=1)[1]
+    if (not is_number(seconds)) or (float(seconds) < 0): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
+    deleteResponse(query.from_user.id)
+    userBots = list(Accounts.find({}).limit(int(responseData.get("messagesCount"))))
+    shuffledArray = shuffleArray(userBots)
+    await query.message.edit("<b>📋 Executing The Task...</b>")
+    msgSended = 0
+    photosSended = 0
+    textArray = responseData.get("text")
+    photosArray = responseData.get("photos")
+    restTime = float(seconds)
+    for i in shuffledArray:
+        if len(textArray) == msgSended: msgSended = 0
+        if len(photosArray) == photosSended: photosSended = 0
+        photoToDeliver = photosArray[photosSended]
+        textToDeliver = textArray[msgSended]
+        msgSended += 1
+        photosSended += 1
+        if restTime > 0:
+            print(f"Resting for {restTime} seconds before processing task for {i.get("phone_number")}")
+            await asyncio.sleep(restTime)
+        await UserbotManager.add_task(i.get("phone_number"),{
+        "type": "sendPhoto",
+        "chatID":responseData.get("chatID"),
+        "photoLink":photoToDeliver,
+        "restTime":restTime,
+        "session_string": i["session_string"],
+    })
+        await UserbotManager.add_task(i.get("phone_number"),{
+        "type": "sendMessage",
+        "chatID":responseData.get("chatID"),
+        "text":textToDeliver,
+        "restTime":restTime,
+        "session_string": i["session_string"],
     })
     await query.message.reply(f"<b>✅ Task Executed: {len(userBots)} Accounts</b>")
 

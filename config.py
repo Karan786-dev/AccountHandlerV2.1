@@ -11,7 +11,9 @@ ADMINS = [1468386562, 6568376766]
 USERBOT_SESSION = "sessions/userbots"
 SESSION = "sessions/mainBot"
 
-# Deposit Accept Payment Gateway Plisio
+# Channels 
+UPLOADING_CHANNEL = "@PhotoUploadKaran"
+LOGGING_CHANNEL = None
 
 # Cancel Button
 cancelButtonText = "Cancel"

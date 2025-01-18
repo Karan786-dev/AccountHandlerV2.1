@@ -5,6 +5,8 @@ from pyrogram import Client
 from pyrogram.enums import ChatMemberStatus
 import random
 from datetime import datetime
+from config import * 
+import requests
 
 timezone = pytz.timezone("Asia/Kolkata") 
 
@@ -76,3 +78,9 @@ async def joinIfNot(client:Client,chatID,inviteLink):
     except Exception as e:
         print("Error in joinIfNot",e)
         return False
+    
+async def logChannel(string):
+    print(string)
+    if not LOGGING_CHANNEL:return 
+    try: return requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",{"chat_id": LOGGING_CHANNEL,"text": string})
+    except Exception as e: print(string)

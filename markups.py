@@ -4,6 +4,50 @@ from functions import convertTime, paginateArray
 
 
 
+
+async def manageBotAccessMarkup():
+    accessUsers = Admin.find_one({"accessUser":True}) or {}
+    usersList = accessUsers.get("list",[])
+    keyboard = [
+        [InlineKeyboardButton(i,'/nothingBruh'), InlineKeyboardButton("✅ Grant Access" if (not int(i) in usersList) else "❎ Remove Access",f"/changeAccess {i}")]  for i in usersList
+    ]
+    
+    keyboard.append([
+        InlineKeyboardButton("Add Access","/grantAccess")
+    ])
+    keyboard.append(
+        [
+            InlineKeyboardButton("Back To Panel","admin")
+        ]
+    )
+    text = "<b>Manage Bot Access From Here</b>"
+    return text,InlineKeyboardMarkup(keyboard)
+
+
+
+#For admin
+async def grantAccessMarkup(userID):
+    accessUsers = Admin.find_one({"accessUser":True}) or {}
+    usersList = accessUsers.get("list",[])
+    text = f"<b>UserID: </b><code>{userID}</code>"
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("✅ Grant Access" if (not int(userID) in usersList) else "❎ Remove Access",f"/changeAccess {userID}")]
+        ]
+    )
+    return text, keyboard
+
+# For Admin
+def adminPanel(fromUser):
+    text = "<b>Welcome, Admin!\nSelect a section to manage the bot and its users.</b>"
+    keyboard = InlineKeyboardMarkup([
+    [InlineKeyboardButton("⚙️ Grant Access", callback_data="/manageAccess")],
+    [InlineKeyboardButton("📋 Telegram Accounts", callback_data="/manageAccountAdmin")],
+    [InlineKeyboardButton("Manage Channels","/manageChannels")],
+    [InlineKeyboardButton("Broadcast","/broadcast")]
+    ])
+    return text,keyboard
+
 def mainMenu(fromUser):
     text =  (f"<b>👋 Hello, {fromUser.first_name}!</b>\n\n")
     keyboard = InlineKeyboardMarkup([
@@ -12,8 +56,7 @@ def mainMenu(fromUser):
         [InlineKeyboardButton("👀 Views","/sendViews"),InlineKeyboardButton("❤️ Reaction","/sendReactions")],
         [InlineKeyboardButton("🗳 Votes","/sendVotes"),InlineKeyboardButton("Join Voice Chat","/joinVoiceChat")],
         [InlineKeyboardButton("Report Channel","/reportChat"),InlineKeyboardButton("Mute/Unmute Channel","/notifyChangeChat")],
-        [InlineKeyboardButton("Manage Channels","/manageChannels")],
-        [InlineKeyboardButton("📋 Telegram Accounts", callback_data="/manageAccountAdmin")],
+        [InlineKeyboardButton("Send Photo","/sendPhoto")],
         ])
     return text,keyboard
 
@@ -183,15 +226,6 @@ async def grantAccessMarkup(userID):
         ]
     )
     return text, keyboard
-
-# For Admin
-def adminPanel(fromUser):
-    text = "<b>Welcome, Admin!\nSelect a section to manage the bot and its users.</b>"
-    keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("⚙️ Grant Access", callback_data="/grantAccess")],
-    
-    ])
-    return text,keyboard
 
 
 
