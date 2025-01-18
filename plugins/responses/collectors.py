@@ -1,5 +1,5 @@
 from pyrogram import Client , filters , ContinuePropagation
-from pyrogram.types import Message , InlineKeyboardMarkup , InlineKeyboardButton , CallbackQuery
+from pyrogram.types import Message , InlineKeyboardMarkup , InlineKeyboardButton , CallbackQuery  , Chat
 from .responseFunctions import *
 from config import *
 from database import Accounts , Channels
@@ -9,6 +9,8 @@ from markups import *
 from orderAccounts import UserbotManager
 from pyrogram.errors import *
 import re 
+
+
 
 #Manually Change Duration of Voice Chat
 @Client.on_message(filters.private)
@@ -97,6 +99,83 @@ async def getUserIDToGrantAccess(_,message):
     if not is_number(userID):return await message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
     text ,keyboard = await grantAccessMarkup(int(userID))
     await message.reply(text,reply_markup=keyboard)
+    
+# Function to change Notification Of Channel
+@Client.on_message(filters.private)
+async def changeNotifyChannelGetIDHandler(_:Client,message:Message):
+    if not checkIfTarget(message.from_user.id,"notifyChangeChatGetID"): raise ContinuePropagation()
+    syncBot: Client = UserbotManager.getSyncBotClient()
+    if not syncBot:return await query.message.reply("Syncbot not available")
+    channelLink = message.text 
+    if not channelLink.startswith("@"):
+        channelInfo: Chat = None
+        try:
+            channelInfo = await syncBot.get_chat(channelLink)
+        except PeerIdInvalid:
+            print(f"SyncBot not a member of channel joining {channelLink}")
+            channelInfo = await syncBot.join_chat(channelLink)
+        channelID = channelInfo.id 
+    else: channelID = channelLink
+    numberAllowed = [10,20,30,40,50,100,300]
+    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/notifyChangeCount {i}") for i in numberAllowed],3))
+    await message.reply("<b>👀 Enter The No. Of Users To Mute/Unmute This Channel:</b>",reply_markup=buttons)
+    deleteResponse(message.from_user.id)
+    createResponse(message.from_user.id,"notifyChangeCount",{"channelID":channelID,"inviteLink":channelLink})
+
+@Client.on_callback_query(filters.regex(r'^/notifyChangeCount'))
+async def notifyChangeCountHandler(_,query:CallbackQuery):
+    if not checkIfTarget(query.from_user.id,"notifyChangeCount"): raise ContinuePropagation()
+    count = query.data.split(" ")[1]
+    responseData = getResponse(query.from_user.id).get("payload")
+    deleteResponse(query.from_user.id)
+    createResponse(query.from_user.id,"askSpeedOfnotifyChange",{**responseData,"notifyChangeCount":int(count)})
+    numberAllowed = [0,1,5,10,25,50,60]
+    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/notifyChangeSpeed {i}") for i in numberAllowed],3))
+    await query.message.edit(
+        "<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
+        "Instant = All Change Notifcation Settings Instantly.\n"
+        "1 = Each 1 Second 1 user\n"
+        "60 = Each 1 Minute 1 user",
+        reply_markup=buttons
+    )
+    
+@Client.on_callback_query(filters.regex(r'^/notifyChangeSpeed'))
+async def notifyChangeSpeedHandler(_:Client,query:CallbackQuery):
+    if not checkIfTarget(query.from_user.id,"askSpeedOfnotifyChange"): raise ContinuePropagation()
+    speed = query.data.split(" ")[1]
+    responsesData = getResponse(query.from_user.id).get("payload")
+    deleteResponse(query.from_user.id)
+    createResponse(query.from_user.id,"askForNotifyChangeDuration",{**responsesData,"speed":int(speed)})
+    numberAllowed = [
+        {"text": "Unmute", "value": 0},
+        {"text": "1 Day", "value": 86400},
+        {"text": "2 Days", "value": 172800},
+        {"text": "5 Days", "value": 432000},
+        {"text": "7 Days", "value": 604800},
+        {"text": "10 Days", "value": 864000},
+        {"text": "30 Days", "value": 2592000},
+        {"text": "Forever", "value": 2147483647},
+    ]
+    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(i.get("text"),f"/notifyChangeDuration {i.get("value")}") for i in numberAllowed],3))
+    await query.message.edit("<b>Select the Mute Duration:</b>\n\nPlease choose the duration for muting the channel. You can select from the following options:\n<b>Alternatively</b>, you can choose Unmute to lift the mute and allow notifications from the channel again.",reply_markup=buttons)
+    
+@Client.on_callback_query(filters.regex(r'^/notifyChangeDuration'))
+async def notifyChangeDurationHandler(_:Client,query:CallbackQuery):
+    if not checkIfTarget(query.from_user.id,"askForNotifyChangeDuration"): raise ContinuePropagation()
+    duration = query.data.split(" ")[1]
+    responseData = getResponse(query.from_user.id).get("payload")
+    deleteResponse(query.from_user.id)
+    userBots = shuffleArray(list(Accounts.find()))
+    await query.message.edit("<b>📋 Executing The Task...</b>")
+    await UserbotManager.bulk_order(userBots,{
+        "type":"changeNotifyChannel",
+        "chatID": responseData.get("channelID"),
+        "restTime":responseData.get("speed"),
+        "taskPerformCount": int(responseData.get("notifyChangeCount")),
+        "inviteLink":responseData.get("inviteLink"),
+        "duration": int(duration)
+    })
+    await query.message.reply(f"<b>✅ Task Executed: {len(userBots)} Accounts</b>")
     
     
 # Function to join voice calls in channel
@@ -325,7 +404,7 @@ async def getInviteLinkToAddSyncBot(_,message):
 @Client.on_message(filters.private)
 async def getPostLinkToReact(_,message):
     if not checkIfTarget(message.from_user.id,"postLinkTosendReaction"): raise ContinuePropagation()
-    postLink = str(message.text)
+    postLink = str(message.text).replace("/c","")
     if not postLink.startswith('https://'): return await message.reply("<b>⚠️ Invalid input:  Please enter a valid url</b>")
     # if postLink.startswith('https://t.me/c'): return await message.reply("<b>⚠️ Invalid input:  Please enter a public channel url</b>")
     deleteResponse(message.from_user.id)
@@ -383,9 +462,8 @@ async def askSpeedOFReactionsHandler(_,query):
 @Client.on_message(filters.private)
 async def getPostLinkToSendViews(_,message):
     if not checkIfTarget(message.from_user.id,"postLinkTosendViews"): raise ContinuePropagation()
-    postLink = str(message.text)
+    postLink = str(message.text).replace("/c","")
     if not postLink.startswith('https://'): return await message.reply("<b>⚠️ Invalid input:  Please enter a valid url</b>")
-    if postLink.startswith('https://t.me/c'): return await message.reply("<b>⚠️ Invalid input:  Please enter a public channel url</b>")
     deleteResponse(message.from_user.id)
     numberAllowed = [10,20,30,40,50,100,300]
     buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/viewsCount {i}") for i in numberAllowed],3))
@@ -683,3 +761,4 @@ async def createUserbotPassword(client, message):
     except Exception as e:
         await message.reply(f"<b>Failed to Sign In: {e}</b>", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Try again!!", "addUserbot")]]))
         raise e
+    

@@ -11,7 +11,7 @@ def mainMenu(fromUser):
         [InlineKeyboardButton("🔔 Join Chat","/joinChats"),InlineKeyboardButton("🔕 Leave Chats","/leaveChats")],
         [InlineKeyboardButton("👀 Views","/sendViews"),InlineKeyboardButton("❤️ Reaction","/sendReactions")],
         [InlineKeyboardButton("🗳 Votes","/sendVotes"),InlineKeyboardButton("Join Voice Chat","/joinVoiceChat")],
-        [InlineKeyboardButton("Report Channel","/reportChat")],
+        [InlineKeyboardButton("Report Channel","/reportChat"),InlineKeyboardButton("Mute/Unmute Channel","/notifyChangeChat")],
         [InlineKeyboardButton("Manage Channels","/manageChannels")],
         [InlineKeyboardButton("📋 Telegram Accounts", callback_data="/manageAccountAdmin")],
         ])

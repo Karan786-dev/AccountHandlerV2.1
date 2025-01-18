@@ -3,20 +3,21 @@ from pytgcalls import filters as callFilters
 from config import USERBOT_SESSION
 import asyncio 
 from pytgcalls import PyTgCalls
-from threading import Timer
+from threading import Timer , Thread
 from urllib.parse import urlparse
 import random
+import queue
 from pyrogram.errors import *
 from pyrogram.raw.functions.messages import GetMessagesViews
 from database import Accounts , Channels
 from pyrogram.handlers import MessageHandler , RawUpdateHandler
-from pyrogram.types import Message 
-from pyrogram.raw.types import InputPeerChannel , InputReportReasonSpam
+from pyrogram.raw.types import InputPeerNotifySettings , InputReportReasonSpam  , InputPeerChannel , InputNotifyPeer
 from pyrogram.raw.functions.messages import Report
-from pyrogram.raw.functions.account import ReportPeer
+from pyrogram.raw.functions.account import ReportPeer , UpdateNotifySettings 
 from pyrogram.enums import ChatMemberStatus
 from functions import *
 import os
+import time
 
 class OrderUserbotManager:
     def __init__(self, idle_timeout=300):
@@ -73,6 +74,7 @@ class OrderUserbotManager:
                 Accounts.delete_one({"phone_number":str(phone_number)})
             elif "[406 AUTH_KEY_DUPLICATED]" in str(e):
                 print(f"{phone_number} Duplicate Auth Key")
+                Accounts.delete_one({"phone_number":str(phone_number)})
             else:
                 print(f"Error starting userbot {phone_number}: {e}")
             return False
@@ -109,7 +111,7 @@ class OrderUserbotManager:
             task = await self.task_queues[phone_number].get()
             if task is None:break
             try:
-                client = self.clients[phone_number]
+                client: Client = self.clients[phone_number]
                 if task["type"] == "join_channel":
                     for channel in task["channels"]:
                         try:
@@ -118,15 +120,36 @@ class OrderUserbotManager:
                         except Exception as e:
                             if not "[400 USER_ALREADY_PARTICIPANT]" in str(e): print(f"Userbot {phone_number} failed to join {channel}\nCause: {str(e)}")
                         await asyncio.sleep(task.get("restTime", 0))
+                elif task["type"] == "changeNotifyChannel":
+                    try:
+                        chatID = task["chatID"]
+                        # If Duration is 0 then channel will be unmuted
+                        foreverTime = 2147483647
+                        duration = task.get("duration",foreverTime) #Default number 2147483647 is for forever mute 
+                        finalDuration = duration if not isinstance(duration,list) else random.randint(int(duration[0]),int(duration[1]))
+                        channelInfo = await joinIfNot(client,chatID,task.get("inviteLink",None))
+                        async for dialog in client.get_dialogs():
+                            if dialog.chat.id == channelInfo.id: break
+                        channelPeer = await client.resolve_peer(channelInfo.id)
+                        mute_untill = (int(time.time()) + duration) if not duration == foreverTime else foreverTime
+                        res = await client.invoke(
+                            UpdateNotifySettings(
+                                peer=InputNotifyPeer(peer=channelPeer),
+                                settings=InputPeerNotifySettings(
+                                    show_previews=False,
+                                    silent=False,
+                                    mute_until=mute_untill
+                                )
+                            )
+                        )
+                        if res:print(f"{phone_number} {"Muted" if duration else "Unmuted"} {chatID}")
+                    except Exception as err:
+                        print(f"Error While Trying To {"Mute" if duration else "Unmute"} {chatID} from {phone_number}: {err}")
                 elif task["type"] == "reportChannel":
                     chatID = task["chatID"]
                     try:
                         if str(chatID).startswith("-100"): await joinIfNot(client,chatID,task.get("inviteLink",None))
                         input_channel = await client.resolve_peer(str(chatID))
-                        message_id = None
-                        async for message in client.get_chat_history(chatID, limit=1):
-                            message_id = message.id
-                            break
                         res = await client.invoke(
                             ReportPeer(
                                 peer=input_channel,
@@ -189,11 +212,11 @@ class OrderUserbotManager:
                     postLink = task["postLink"]
                     parsed_url = urlparse(postLink)
                     path_segments = parsed_url.path.strip("/").split("/")
-                    chatID = str(path_segments[1])
-                    messageID = int(path_segments[2])
+                    chatID = str(path_segments[0])
+                    messageID = int(path_segments[1])
                     if is_number(chatID):
-                        chatID = int("-100"+path_segments[1])
-                        messageID = int(path_segments[2])
+                        chatID = int("-100"+path_segments[0])
+                        messageID = int(path_segments[1])
                     emojis = task['emoji'] 
                     emoji = random.choice(emojis)
                     try:
@@ -222,11 +245,11 @@ class OrderUserbotManager:
                     postLink = task["postLink"]
                     parsed_url = urlparse(postLink)
                     path_segments = parsed_url.path.strip("/").split("/")
-                    chatID = str(path_segments[1])
-                    messageID = int(path_segments[2])
+                    chatID = str(path_segments[0])
+                    messageID = int(path_segments[1])
                     if is_number(chatID):
-                        chatID = int("-100"+path_segments[1])
-                        messageID = int(path_segments[2])
+                        chatID = int("-100"+path_segments[0])
+                        messageID = int(path_segments[1])
                     try:
                         channelPeer = await client.resolve_peer(chatID)
                         await client.invoke(GetMessagesViews(
@@ -280,13 +303,10 @@ class OrderUserbotManager:
             if rest_time != 0:
                 print(f"Resting for {rest_time} seconds before processing task for {userbot["phone_number"]}")
                 await asyncio.sleep(rest_time)
-            await self.add_task(
-                phone_number=userbot["phone_number"],
-                task={
-                    **task,
-                    "session_string": userbot["session_string"] ,
-                },
-            )
+            def runAsyncInThread():
+                asyncio.run(self.add_task(userbot["phone_number"], {**task, "session_string": userbot["session_string"]}))
+            taskThread = Thread(target=runAsyncInThread)
+            taskThread.start()
             # Break after order limit complete
             if taskLimit >= task["taskPerformCount"]: break
         print(f"Bulk order {task['type']} added for {len(userbots)} userbots.")
