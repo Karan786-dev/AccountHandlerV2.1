@@ -99,6 +99,7 @@ async def getChannelID(_,message:Message):
     waitingMsg = await message.reply("<b>SyncBot trying to join channel.......</b>")
     syncBot = Client(name=syncBotData.get("phone_number"),session_string=syncBotData.get("session_string"))
     await syncBot.start()
+    channelData = None
     try:
         channelData  = await syncBot.join_chat(channelLink)
     except Exception as e:
