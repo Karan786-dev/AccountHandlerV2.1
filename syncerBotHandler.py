@@ -32,7 +32,7 @@ async def messageHandler(_,message:Message):
         reactRestTime = channelData.get('reactionRestTime',0)
         reactionCount = channelData.get('reactionsCount',0) 
         userbots = list(Accounts.find({}))
-        tasksArray(UserbotManager.bulk_order(userbots,{
+        tasksArray.append(UserbotManager.bulk_order(userbots,{
             "type":"reactPost",
             "postLink": postLink,
             "restTime":float(reactRestTime),
