@@ -3,10 +3,9 @@ from pytgcalls import filters as callFilters
 from config import USERBOT_SESSION
 import asyncio 
 from pytgcalls import PyTgCalls
-from threading import Timer , Thread
+from threading import Timer
 from urllib.parse import urlparse
 import random
-import queue
 from pyrogram.errors import *
 from pyrogram.raw.functions.messages import GetMessagesViews
 from database import Accounts , Channels
@@ -74,7 +73,6 @@ class OrderUserbotManager:
                 Accounts.delete_one({"phone_number":str(phone_number)})
             elif "[406 AUTH_KEY_DUPLICATED]" in str(e):
                 print(f"{phone_number} Duplicate Auth Key")
-                Accounts.delete_one({"phone_number":str(phone_number)})
             else:
                 print(f"Error starting userbot {phone_number}: {e}")
             return False
@@ -219,14 +217,16 @@ class OrderUserbotManager:
                         messageID = int(path_segments[1])
                     emojis = task['emoji'] 
                     emoji = random.choice(emojis)
+                    res = False
+                    print(chatID)
                     try:
-                        await client.send_reaction(chatID,messageID,emoji=emoji)
+                        res = await client.send_reaction(chatID,messageID,emoji=emoji)
                     except Exception as e:
                         if "[400 CHANNEL_INVALID]" in str(e) or "[406 CHANNEL_PRIVATE]" in str(e):
                             await client.join_chat(task["inviteLink"])
-                            await client.send_reaction(chatID,messageID,emoji=emoji)
+                            res = await client.send_reaction(chatID,messageID,emoji=emoji)
                         else: print(f"Failed To React: {str(e)}")
-                    print(f"Userbot {phone_number} reacted to {task['postLink']} with {emoji}")
+                    if res:print(f"Userbot {phone_number} reacted to {task['postLink']} with {emoji}")
                 elif task['type'] == 'sendMessage':
                     textToDeliver = task['text']
                     chatIDToDeliver = task['chatID']
@@ -294,6 +294,7 @@ class OrderUserbotManager:
                      Example: {"type": "join_channel", "channel": "some_channel"}
         """
         taskLimit = 0
+        tasksGathering = []
         for userbot in userbots:
             taskLimit += 1
             
@@ -303,12 +304,22 @@ class OrderUserbotManager:
             if rest_time != 0:
                 print(f"Resting for {rest_time} seconds before processing task for {userbot["phone_number"]}")
                 await asyncio.sleep(rest_time)
-            def runAsyncInThread():
-                asyncio.run(self.add_task(userbot["phone_number"], {**task, "session_string": userbot["session_string"]}))
-            taskThread = Thread(target=runAsyncInThread)
-            taskThread.start()
-            # Break after order limit complete
+                await self.add_task(
+                    phone_number=userbot["phone_number"],
+                    task={
+                        **task,
+                        "session_string": userbot["session_string"] ,
+                    },
+                )
+            elif rest_time == 0:
+                tasksGathering.append(self.add_task(
+                    phone_number=userbot["phone_number"],
+                    task={
+                        **task,
+                        "session_string": userbot["session_string"] ,
+                    },))
             if taskLimit >= task["taskPerformCount"]: break
+        await asyncio.gather(*tasksGathering)
         print(f"Bulk order {task['type']} added for {len(userbots)} userbots.")
     async def addHandlersToSyncBot(self,needToJoin=True):
         try:
