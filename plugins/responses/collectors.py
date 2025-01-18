@@ -99,7 +99,6 @@ async def getChannelID(_,message:Message):
     syncBotData = Accounts.find_one({"syncBot":True})
     waitingMsg = await message.reply("<b>SyncBot trying to join channel.......</b>")
     syncBot = Client(name=syncBotData.get("phone_number"),session_string=syncBotData.get("session_string"))
-    print(syncBot)
     await syncBot.start()
     try:
         await syncBot.join_chat(channelLink)
@@ -441,6 +440,7 @@ async def getPostLinkToVote(_,message:Message):
     postLink = str(message.text)
     responsesData = getResponse(message.from_user.id).get("payload",{})
     match = re.match(r"https://t.me/c/(?P<chat>[\w_]+)/(?P<msg_id>\d+)", postLink)
+    deleteResponse(message.from_user.id)
     if not match: return await message.reply("<b>⚠️ Invalid input:  Please enter a valid url</b>")
     try:
         chat = match.group("chat")
