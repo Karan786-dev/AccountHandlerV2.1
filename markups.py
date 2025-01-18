@@ -1,6 +1,8 @@
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from database import Channels, Admin, Accounts
+from orderAccounts import UserbotManager
 from functions import convertTime, paginateArray
+from pyrogram import Client
 
 
 
@@ -194,7 +196,9 @@ async def viewChannelManage(channelID,channelData=0):
 
     
 async def selectReactionEmoji(channelID,):
-    reactionEmojiArray = ["👍", "❤️", "😂", "😮", "😢", "👏", "🔥", "🎉", "💯", "🤔","🤩", "😡", "😎", "🎶", "🥳", "💔", "✨", "🚀", "🌈", "🍿"]
+    syncBot: Client = UserbotManager.getSyncBotClient()
+    chatInfo = syncBot.get_chat(channelID)
+    reactionEmojiArray = chatInfo.available_reactions
     channelData = Channels.find_one({"channelID":int(channelID)})
     added_emojis = channelData.get("reactionsType", [])
     emoji_list = ",".join(added_emojis) if added_emojis else "No emojis added yet."
