@@ -73,6 +73,7 @@ class OrderUserbotManager:
                 Accounts.delete_one({"phone_number":str(phone_number)})
             elif "[406 AUTH_KEY_DUPLICATED]" in str(e):
                 await logChannel(f"{phone_number} Duplicate Auth Key: Account Removed")
+                Accounts.delete_one({"phone_number":str(phone_number)})
             else:
                 await logChannel(f"Error starting userbot {phone_number}: {e}")
             return False
