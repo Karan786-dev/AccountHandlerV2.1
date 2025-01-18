@@ -45,7 +45,7 @@ class OrderUserbotManager:
         if os.path.exists(oldSessionFile):
             os.remove(oldSessionFile)
         try:
-            await client.start()
+            await client.connect()
             if isSyncBot: 
                 self.syncBot = {
                     "client":client,
@@ -81,7 +81,7 @@ class OrderUserbotManager:
     async def stop_client(self, phone_number):
         """Stop a userbot client and clean up resources."""
         if phone_number in self.clients:
-            await self.clients[phone_number].stop()
+            await self.clients[phone_number].disconnect()
             del self.clients[phone_number]
             print(f"Userbot {phone_number} stopped.")
 
