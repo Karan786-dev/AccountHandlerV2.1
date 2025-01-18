@@ -197,7 +197,7 @@ async def viewChannelManage(channelID,channelData=0):
     
 async def selectReactionEmoji(channelID,):
     syncBot: Client = UserbotManager.getSyncBotClient()
-    chatInfo = syncBot.get_chat(channelID)
+    chatInfo = await syncBot.get_chat(channelID)
     reactionEmojiArray = chatInfo.available_reactions
     channelData = Channels.find_one({"channelID":int(channelID)})
     added_emojis = channelData.get("reactionsType", [])
