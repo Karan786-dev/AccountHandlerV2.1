@@ -197,12 +197,14 @@ async def viewChannelManage(channelID,channelData=0):
     
 async def selectReactionEmoji(channelID,):
     syncBot: Client = UserbotManager.getSyncBotClient()
-    chatInfo = await syncBot.get_chat(channelID)
-    reactionEmojiArray = chatInfo.available_reactions.reactions
     channelData = Channels.find_one({"channelID":int(channelID)})
+    print(channelData.get("username") or channelData.get("inviteLink") or channelID)
+    chatInfo = await syncBot.get_chat(channelData.get("username") or channelData.get("inviteLink") or channelID)
+    reactionEmojiArray = []
+    if chatInfo.available_reactions.all_are_enabled: reactionEmojiArray = ["👍", "❤️", "😂", "😲", "😢", "😡", "🎉", "👏", "🔥", "🤔", "🙌", "💯", "✨", "🎶", "🕊️", "🌟"]
+    else: reactionEmojiArray = [i.emoji for i in chatInfo.available_reactions.reactions]
     added_emojis = channelData.get("reactionsType", [])
     emoji_list = ",".join(added_emojis) if added_emojis else "No emojis added yet."
-
     text = (
         "<b>Manage Channel Reactions</b>\n\n"
         "🎭 <b>Instructions:</b>\n"
@@ -211,7 +213,7 @@ async def selectReactionEmoji(channelID,):
         f"✅ <b>Currently Added Emojis:</b> <code>{emoji_list}</code>\n\n"
         "Choose emojis from the options below to customize your channel reactions."
     )
-    keyboardButton = paginateArray([InlineKeyboardButton(i.emoji,f"/toggleEmoji {i.emoji} {channelID}") for i in reactionEmojiArray],5)
+    keyboardButton = paginateArray([InlineKeyboardButton(i,f"/toggleEmoji {i} {channelID}") for i in reactionEmojiArray],5)
     keyboardButton.append([InlineKeyboardButton("🔙 Back", callback_data=f"/channelServices {channelID}")])
     return text , InlineKeyboardMarkup(keyboardButton)
     
