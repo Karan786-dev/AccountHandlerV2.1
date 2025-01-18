@@ -15,8 +15,9 @@ propcache==0.2.1
 psutil==6.1.1
 py-tgcalls==2.0.6
 pyaes==1.6.1
+pymediainfo-pyrofork==6.0.2
 pymongo==4.10.1
-Pyrogram==2.0.106
+pyrofork==2.3.56
 PySocks==1.7.1
 pytz==2024.2
 requests==2.32.3
