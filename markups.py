@@ -264,9 +264,9 @@ async def adminManageAccounts(page: int = 1, per_page: int = 5):
     #Navigation Button 
     navigationButton = []
     if page > 1:
-        navigationButton.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"/account_listings {page - 1}"))
+        navigationButton.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"/manageAccountListAdmin {page - 1}"))
     if page < total_pages:
-        navigationButton.append(InlineKeyboardButton("Next ➡️", callback_data=f"/account_listings {page + 1}"))
+        navigationButton.append(InlineKeyboardButton("Next ➡️", callback_data=f"/manageAccountListAdmin {page + 1}"))
 
     # Back button
     backButton = [InlineKeyboardButton("🔙 Back To Menu", callback_data=f"admin")]
