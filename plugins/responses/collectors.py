@@ -99,13 +99,13 @@ async def getChannelID(_,message:Message):
     waitingMsg = await message.reply("<b>SyncBot trying to join channel.......</b>")
     syncBot = Client(name=syncBotData.get("phone_number"),session_string=syncBotData.get("session_string"))
     await syncBot.start()
-    channelData = None
     try:
-        channelData  = await syncBot.join_chat(channelLink)
+        await syncBot.join_chat(channelLink)
     except Exception as e:
         if not "[400 USER_ALREADY_PARTICIPANT]" in str(e):
             await _.edit_message_text(chat_id=message.from_user.id,message_id=waitingMsg.id,text=f"<b>⚠️ Failed To Join Channel</b>: {str(e)}")
             raise e
+    channelData = await syncBot.get_chat(channelLink)
     channelID = channelData.id
     if Channels.find_one({"channelID":channelID}): return await  _.edit_message_text(message.from_user.id,waitingMsg.id,"<b>⚠️ This Channel already exists in database</b>")
     # Check if the channel is public or private
