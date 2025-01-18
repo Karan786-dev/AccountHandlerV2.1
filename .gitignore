@@ -1,4 +1,5 @@
-__pycache__
-sessions
+__pycache__/
+sessions/
 test.py
-venv
+venv/
+config.py
