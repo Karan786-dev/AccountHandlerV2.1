@@ -44,7 +44,7 @@ class OrderUserbotManager:
         if self.proxyList.get(phone_number) and self.proxyList.get(phone_number).totalRun >= 10:
             proxy = self.proxyList[phone_number].data 
             self.proxyList[phone_number].totalRun += 1
-        else: self.proxyList[phone_number] == {"totalRun":1,"data":proxy}
+        else: self.proxyList[phone_number] ={"totalRun":1,"data":proxy}
             
         client = Client(f"/{phone_number}",session_string=sessionString,phone_number=phone_number,proxy=proxy)
         oldSessionFile = USERBOT_SESSION+f"/{phone_number}"+'.session-journal'
