@@ -372,7 +372,7 @@ class OrderUserbotManager:
                     chatStatus = chatMember.status
                 except Exception as e: 
                     if "[400 USER_NOT_PARTICIPANT]" in str(e): chatStatus = ChatMemberStatus.LEFT
-                    else: raise e
+                    else: print(str(e))
                 if needToJoin and not (chatStatus in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR , ChatMemberStatus.OWNER]): 
                     await self.add_task(phone_number,{
                     "type": "join_channel",
