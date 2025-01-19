@@ -24,13 +24,14 @@ async def requestAdminAccessHandler(_,query):
     
     
 @Client.on_callback_query(filters.regex(r'^/changeAccess'))
-async def changeAccessHandler(_,query):
+async def changeAccessHandler(_: Client,query):
     userID = query.data.split(maxsplit=1)[1]
     accessUsers = Admin.find_one({"accessUser":True}) or {}
     usersList = accessUsers.get("list",[])
     if int(userID) in usersList:
         Admin.update_one({"accessUser":True},{"$pull":{"list":int(userID)}},upsert=True)
     else:
+        await _.send_message(userID,"Your request has been <b>approved</b>\n kindly /start again")
         Admin.update_one({"accessUser":True},{"$push":{"list":int(userID)}},upsert=True)
     text , keyboard = await manageBotAccessMarkup()
     await query.message.edit(text,reply_markup=keyboard)

@@ -1,6 +1,7 @@
 from config import ADMINS
 from database import Admin
 from pyrogram.types import InlineKeyboardButton , InlineKeyboardMarkup
+from config import adminUsername
 
 async def checkAccess(_,message):
     if message.from_user.id in ADMINS:return True
@@ -8,7 +9,7 @@ async def checkAccess(_,message):
     if message.from_user.id in accessUsers.get("list",[]): return True
     text = (
         "<b>🤦🏻‍♂ You Don't Have Access To The Bot!</b>\n\n"
-        f"<b>Your UID: </b><code>{message.from_user.id}</code>"
+        f"<b>Your UID: </b><code>{message.from_user.id}</code>\n\n<b>Contact <a href='{adminUsername}'>Admin</a> For Access</b>"
     )
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("Request Admin Access","/requestAdminAccess")]
