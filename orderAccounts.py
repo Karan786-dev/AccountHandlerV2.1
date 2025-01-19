@@ -41,7 +41,7 @@ class OrderUserbotManager:
                 "password": selected_proxy["password"],
                 "scheme": "socks5"
             }
-        if self.proxyList[phone_number] and self.proxyList[phone_number].totalRun >= 10:
+        if self.proxyList.get(phone_number) and self.proxyList.get(phone_number).totalRun >= 10:
             proxy = self.proxyList[phone_number].data 
             self.proxyList[phone_number].totalRun += 1
         else: self.proxyList[phone_number] == {"totalRun":1,"data":proxy}
