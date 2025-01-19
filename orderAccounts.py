@@ -365,9 +365,9 @@ class OrderUserbotManager:
             client.add_handler(MessageHandler(messageHandler))
             client.add_handler(RawUpdateHandler(voiceChatHandler))
             for channel in channelsLink:
-                chat = await client.get_chat(channel)
                 chatStatus = None
                 try: 
+                    chat = await client.get_chat(channel)
                     chatMember = await client.get_chat_member(chat.id, "me")
                     chatStatus = chatMember.status
                 except Exception as e: 
