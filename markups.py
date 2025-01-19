@@ -206,7 +206,7 @@ async def selectReactionEmoji(channelID,):
     #Remove Emoji's that are not allowed in channel 
     for i in added_emojis:
         if not i in reactionEmojiArray:
-            added_emojis.pop(i)
+            added_emojis.remove(i)
             Channels.update_one({"channelID":int(channelID)},{"$pull":{"reactionsType":i}})
     emoji_list = ",".join(added_emojis) if added_emojis else "No emojis added yet."
     text = (
