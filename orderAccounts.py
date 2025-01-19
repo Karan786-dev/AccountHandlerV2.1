@@ -384,6 +384,7 @@ class OrderUserbotManager:
             print(f"SyncBot Flood Wait: {e.value} seconds")
             await asyncio.sleep(e.value)
             await self.addHandlersToSyncBot()
+        except Exception as e: print(str(e))
     def getSyncBotClient(self):
         if "client" in self.syncBot: return self.syncBot["client"]
         else: print("Sync Bot Not Found")
