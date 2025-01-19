@@ -25,6 +25,7 @@ class OrderUserbotManager:
         self.idle_timers = {}  # Timers to stop inactive clients
         self.idle_timeout = idle_timeout
         self.syncBot = {}
+        self.proxyList = {}
 
     async def start_client(self,sessionString ,phone_number , isSyncBot=False):
         """Start or restart a userbot client."""
@@ -40,12 +41,17 @@ class OrderUserbotManager:
                 "password": selected_proxy["password"],
                 "scheme": "socks5"
             }
+        if self.proxyList[phone_number] and self.proxyList[phone_number].totalRun >= 10:
+            proxy = self.proxyList[phone_number].data 
+            self.proxyList[phone_number].totalRun += 1
+        else: self.proxyList[phone_number] == {"totalRun":1,"data":proxy}
+            
         client = Client(f"/{phone_number}",session_string=sessionString,phone_number=phone_number,proxy=proxy)
         oldSessionFile = USERBOT_SESSION+f"/{phone_number}"+'.session-journal'
         if os.path.exists(oldSessionFile):
             os.remove(oldSessionFile)
         try:
-            await client.connect()
+            await client.start()
             if isSyncBot: 
                 self.syncBot = {
                     "client":client,
@@ -81,7 +87,7 @@ class OrderUserbotManager:
     async def stop_client(self, phone_number):
         """Stop a userbot client and clean up resources."""
         if phone_number in self.clients:
-            await self.clients[phone_number].disconnect()
+            await self.clients[phone_number].stop()
             del self.clients[phone_number]
             print(f"Userbot {phone_number} stopped.")
 
