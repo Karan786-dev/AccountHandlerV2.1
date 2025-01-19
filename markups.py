@@ -198,12 +198,16 @@ async def viewChannelManage(channelID,channelData=0):
 async def selectReactionEmoji(channelID,):
     syncBot: Client = UserbotManager.getSyncBotClient()
     channelData = Channels.find_one({"channelID":int(channelID)})
-    print(channelData.get("username") or channelData.get("inviteLink") or channelID)
     chatInfo = await syncBot.get_chat(channelData.get("username") or channelData.get("inviteLink") or channelID)
     reactionEmojiArray = []
-    if chatInfo.available_reactions.all_are_enabled: reactionEmojiArray = ["👍", "❤️", "😂", "😲", "😢", "😡", "🎉", "👏", "🔥", "🤔", "🙌", "💯", "✨", "🎶", "🕊️", "🌟"]
+    if chatInfo.available_reactions.all_are_enabled: reactionEmojiArray = ["👍", "❤️", "😲", "😢", "😡", "🎉", "👏", "🔥", "🤔", "🙌", "💯", "✨", "🎶", "🕊️", "🌟"]
     else: reactionEmojiArray = [i.emoji for i in chatInfo.available_reactions.reactions]
-    added_emojis = channelData.get("reactionsType", [])
+    added_emojis: list = channelData.get("reactionsType", [])
+    #Remove Emoji's that are not allowed in channel 
+    for i in added_emojis:
+        if not i in reactionEmojiArray:
+            added_emojis.pop(i)
+            Channels.update_one({"channelID":int(channelID)},{"$pull":{"reactionsType":i}})
     emoji_list = ",".join(added_emojis) if added_emojis else "No emojis added yet."
     text = (
         "<b>Manage Channel Reactions</b>\n\n"
