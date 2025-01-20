@@ -7,6 +7,7 @@ from pyrogram import Client, idle  # type: ignore
 from functions import temp
 from pathlib import Path
 from orderAccounts import UserbotManager
+from database import Accounts
 import threading
 
 Path(SESSION).mkdir(exist_ok=True,parents=True)
@@ -40,7 +41,9 @@ class Bot(Client):
                 f"""Bot Information:
 Username: @{me.username}"""
             )
-            await UserbotManager.addHandlersToSyncBot()
+            syncBotData = Accounts.find_one({"syncBot":True})
+            if not syncBotData: return print("Sync Bot Not Found")
+            await self.start_client(syncBotData.get("session_string"),syncBotData.get("phone_number"),isSyncBot=True)
         except Exception as e:
             print(f"Error starting bot: {e}")
             raise e

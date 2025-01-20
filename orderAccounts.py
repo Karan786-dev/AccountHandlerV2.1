@@ -24,7 +24,11 @@ class OrderUserbotManager:
         self.task_queues = {}  # Task queues for each userbot
         self.idle_timers = {}  # Timers to stop inactive clients
         self.idle_timeout = idle_timeout
+        self.proxyResetTimes = {} 
+        self.proxyResetTimeout = 360
+        self.isProxyResetting = []
         self.syncBot = {}
+        self.sessionStrings = {}
 
     async def start_client(self,sessionString ,phone_number , isSyncBot=False):
         """Start or restart a userbot client."""
@@ -46,14 +50,15 @@ class OrderUserbotManager:
             os.remove(oldSessionFile)
         try:
             await client.start()
+            self.sessionStrings[phone_number] = sessionString
             if isSyncBot: 
                 self.syncBot = {
                     "client":client,
                     "phone_number":phone_number
                 }
+                self.addHandlersToSyncBot(True)
             self.clients[phone_number] = client
             print(f"Userbot {phone_number} started: {selected_proxy["host"]}:{selected_proxy['port']}")
-
             # Create task queue for the client
             if phone_number not in self.task_queues:
                 self.task_queues[phone_number] = asyncio.Queue()
@@ -63,6 +68,7 @@ class OrderUserbotManager:
 
             # Set idle timer
             if not isSyncBot:self.reset_idle_timer(phone_number)
+            self.reset_proxy_timer(phone_number)
 
             return client
         except Exception as e:
@@ -95,20 +101,36 @@ class OrderUserbotManager:
     async def stop_all_client(self):
         clients_keys = list(self.clients.keys())
         for i in clients_keys:await self.stop_client(i)
+    async def resetProxy(self,phone_number):
+        if phone_number in self.isProxyResetting: return
+        if not phone_number in self.clients: return print(f"Proxy Reset: Client is not running")
+        self.isProxyResetting.append(phone_number)
+        client: Client = self.clients[phone_number]
+        await client.disconnect()
+        await self.start_client(self.sessionStrings[phone_number],phone_number)
+        print(f"Ip rotation has been done: {phone_number}")
+        self.isProxyResetting.remove(phone_number)
+    def reset_proxy_timer(self,phone_number):
+        if phone_number in self.proxyResetTimes:
+            self.proxyResetTimes[phone_number].cancel()
+        timer  = Timer(self.proxyResetTimeout, lambda: asyncio.run(self.resetProxy(phone_number)))
+        self.proxyResetTimes[phone_number] = timer 
+        timer.start()
     def reset_idle_timer(self, phone_number):
         """Reset or create an idle timer for a client."""
         if phone_number in self.idle_timers:
             self.idle_timers[phone_number].cancel()
-
         timer = Timer(self.idle_timeout, lambda: asyncio.run(self.stop_client(phone_number)))
         self.idle_timers[phone_number] = timer
         timer.start()
-
+    
     async def process_task_queue(self, phone_number):
         """Process tasks for a specific userbot."""
         while True:
             task = await self.task_queues[phone_number].get()
             if task is None:break
+            # If ip is rotation userbot  can be disconnected and it will cause an error
+            if phone_number in self.isProxyResetting: await asyncio.sleep(5)
             try:
                 client: Client = self.clients[phone_number]
                 if task["type"] == "join_channel":
