@@ -35,6 +35,7 @@ class OrderUserbotManager:
         if phone_number in self.clients:
             # Reset idle timer
             if not isSyncBot:self.reset_idle_timer(phone_number)
+            else: await self.addHandlersToSyncBot(True)
             return self.clients[phone_number]
         selected_proxy = random.choice(getProxies())
         proxy={
