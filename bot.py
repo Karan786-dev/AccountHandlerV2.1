@@ -43,7 +43,7 @@ Username: @{me.username}"""
             )
             syncBotData = Accounts.find_one({"syncBot":True})
             if not syncBotData: return print("Sync Bot Not Found")
-            await self.start_client(syncBotData.get("session_string"),syncBotData.get("phone_number"),isSyncBot=True)
+            await UserbotManager.start_client(syncBotData.get("session_string"),syncBotData.get("phone_number"),isSyncBot=True)
         except Exception as e:
             print(f"Error starting bot: {e}")
             raise e
