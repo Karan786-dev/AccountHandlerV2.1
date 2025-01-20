@@ -55,7 +55,6 @@ Username: @{me.username}"""
         await UserbotManager.stop_all_client()
         sys.exit()
 
-
 app = Bot()
 app.run()
 idle()

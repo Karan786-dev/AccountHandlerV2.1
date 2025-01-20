@@ -29,6 +29,7 @@ class OrderUserbotManager:
         self.isProxyResetting = []
         self.syncBot = {}
         self.sessionStrings = {}
+        self.syncBotHandlersData = []
 
     async def start_client(self,sessionString ,phone_number , isSyncBot=False):
         """Start or restart a userbot client."""
@@ -50,15 +51,9 @@ class OrderUserbotManager:
         if os.path.exists(oldSessionFile):
             os.remove(oldSessionFile)
         try:
+            self.clients[phone_number] = client
             await client.start()
             self.sessionStrings[phone_number] = sessionString
-            if isSyncBot: 
-                self.syncBot = {
-                    "client":client,
-                    "phone_number":phone_number
-                }
-                await self.addHandlersToSyncBot(True)
-            self.clients[phone_number] = client
             print(f"Userbot {phone_number} started: {selected_proxy["host"]}:{selected_proxy['port']}")
             # Create task queue for the client
             if phone_number not in self.task_queues:
@@ -70,9 +65,15 @@ class OrderUserbotManager:
             # Set idle timer
             if not isSyncBot:self.reset_idle_timer(phone_number)
             self.reset_proxy_timer(phone_number)
-
+            if isSyncBot: 
+                self.syncBot = {
+                    "client":client,
+                    "phone_number":phone_number
+                }
+                await self.addHandlersToSyncBot(True,client=client)
             return client
         except Exception as e:
+            del self.clients[phone_number]
             if "database is locked" in str(e) or "pyrogram.errors.SecurityCheckMismatch:" in str(e): print(str(e))
             elif "[401 AUTH_KEY_UNREGISTERED]" in str(e) or "[401 USER_DEACTIVATED_BAN]" in str(e) or "[401 SESSION_REVOKED]" in str(e): 
                 await logChannel(f"Account Removed: {phone_number} Please login again: {str(e)}")
@@ -80,6 +81,7 @@ class OrderUserbotManager:
                 Accounts.delete_one({"phone_number":str(phone_number)})
             elif "[406 AUTH_KEY_DUPLICATED]" in str(e):
                 await logChannel(f"{phone_number} Duplicate Auth Key: Account Removed")
+                await self.stop_client(phone_number)
                 Accounts.delete_one({"phone_number":str(phone_number)})
             else:
                 await logChannel(f"Error starting userbot {phone_number}: {e}")
@@ -106,10 +108,10 @@ class OrderUserbotManager:
         if phone_number in self.isProxyResetting: return
         if not phone_number in self.clients: return print(f"Proxy Reset: Client is not running")
         self.isProxyResetting.append(phone_number)
-        client: Client = self.clients[phone_number]
-        await client.disconnect()
-        await self.start_client(self.sessionStrings[phone_number],phone_number)
-        print(f"Ip rotation has been done: {phone_number}")
+        isSyncBot = self.syncBot["phone_number"] == phone_number
+        await self.stop_client(phone_number)
+        await self.start_client(self.sessionStrings[phone_number],phone_number,isSyncBot)
+        print(f"Proxy Reset: Ip rotation has been done: {phone_number}")
         self.isProxyResetting.remove(phone_number)
     def reset_proxy_timer(self,phone_number):
         if phone_number in self.proxyResetTimes:
@@ -252,7 +254,7 @@ class OrderUserbotManager:
                         if "[400 CHANNEL_INVALID]" in str(e) or "[406 CHANNEL_PRIVATE]" in str(e):
                             await client.join_chat(task["inviteLink"])
                             res = await client.send_reaction(chatID,messageID,emoji=emoji)
-                        else: print(f"Failed To React: {str(e)}")
+                        else: print(f"{phone_number} Failed To React: {str(e)}")
                     if res:print(f"Userbot {phone_number} reacted to {task['postLink']} with {emoji}")
                 elif task['type'] == 'sendMessage':
                     textToDeliver = task['text']
@@ -313,7 +315,7 @@ class OrderUserbotManager:
                                 id=[messageID],
                                 increment=True
                             ))
-                        else: print(f"Failed To View Post: {str(e)}")
+                        else: print(f"{phone_number} Failed To View Post: {str(e)}")
             except Exception as e:
                 if "[400 USER_ALREADY_PARTICIPANT]" in str(e): continue
                 print(f"Error processing task for {phone_number}: {e}")
@@ -329,6 +331,7 @@ class OrderUserbotManager:
             if not await self.start_client(task["session_string"], phone_number): return
 
         # Add task to the queue
+        if not phone_number in self.task_queues: self.task_queues[phone_number] = asyncio.Queue()
         await self.task_queues[phone_number].put(task)
 
     async def bulk_order(self, userbots, task):
@@ -369,15 +372,14 @@ class OrderUserbotManager:
             if taskLimit >= task["taskPerformCount"]: break
         await asyncio.gather(*tasksGathering)
         print(f"Bulk order {task['type']} added for {len(userbots)} userbots.")
-    async def addHandlersToSyncBot(self,needToJoin=True):
+    async def addHandlersToSyncBot(self,needToJoin=True,client: Client|None = None):
         try:
             syncBotData = Accounts.find_one({"syncBot":True})
             if not syncBotData: return print("Sync Bot Not Found")
             channels = list(Channels.find({}))
             if not len(channels): return 
             phone_number = syncBotData.get("phone_number")
-            client = await self.start_client(syncBotData.get("session_string"),phone_number,isSyncBot=True)
-            print("Sync Bot Trying to join Channels")
+            if not client: client = await self.start_client(syncBotData.get("session_string"),phone_number,isSyncBot=True)
             channelsLink = []
             for i in channels: channelsLink.append(f"@{i.get("username")}" if i.get("username",False) else i.get("inviteLink"))
             from syncerBotHandler import messageHandler , voiceChatHandler
@@ -385,8 +387,15 @@ class OrderUserbotManager:
                 print(f"{phone_number}  SyncBot Failed To Run")
                 # os.abort()
                 return
-            client.add_handler(MessageHandler(messageHandler))
-            client.add_handler(RawUpdateHandler(voiceChatHandler))
+            if len(self.syncBotHandlersData): 
+                for i in self.syncBotHandlersData: 
+                    try: client.remove_handler(i)
+                    except: pass
+                    self.syncBotHandlersData.remove(i)
+            self.syncBotHandlersData.append(client.add_handler(MessageHandler(messageHandler)))
+            self.syncBotHandlersData.append(client.add_handler(RawUpdateHandler(voiceChatHandler)))
+            print(self.syncBotHandlersData)
+            print(f"Handlers added for syncBot")
             for channel in channelsLink:
                 chatStatus = None
                 try: 
@@ -406,7 +415,7 @@ class OrderUserbotManager:
         except FloodWait as e:
             print(f"SyncBot Flood Wait: {e.value} seconds")
             await asyncio.sleep(e.value)
-            await self.addHandlersToSyncBot()
+            await self.addHandlersToSyncBot(needToJoin,client)
         except Exception as e: print(str(e))
     def getSyncBotClient(self):
         if "client" in self.syncBot: return self.syncBot["client"]
