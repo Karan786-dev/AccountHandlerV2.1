@@ -56,7 +56,7 @@ class OrderUserbotManager:
                     "client":client,
                     "phone_number":phone_number
                 }
-                self.addHandlersToSyncBot(True)
+                await self.addHandlersToSyncBot(True)
             self.clients[phone_number] = client
             print(f"Userbot {phone_number} started: {selected_proxy["host"]}:{selected_proxy['port']}")
             # Create task queue for the client
