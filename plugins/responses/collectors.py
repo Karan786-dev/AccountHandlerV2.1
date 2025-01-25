@@ -684,9 +684,15 @@ async def askForSpeedOfleaveHandler(_,query):
     deleteResponse(query.from_user.id)
     userBots = list(Accounts.find().limit(int(responseData.get("membersCount"))))
     await query.message.edit("<b>📋 Executing The Task...</b>")
+    channelIDs = []
+    for i in responseData.get("chatIDs"):
+        if i.startswith('https://t.me/'):  
+            channelData = await UserbotManager.getSyncBotClient().get_chat(i)
+            channelIDs.append(channelData.id)
+        else: channelIDs.append(i)
     await UserbotManager.bulk_order(userBots,{
         "type":"leave_channel",
-        "channels": responseData.get("chatIDs"),
+        "channels": channelIDs,
         "restTime":float(seconds),
         "taskPerformCount": int(responseData.get("membersCount"))
     })

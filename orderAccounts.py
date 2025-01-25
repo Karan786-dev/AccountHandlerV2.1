@@ -155,10 +155,15 @@ class OrderUserbotManager:
                 if task["type"] == "join_channel":
                     for channel in task["channels"]:
                         try:
+                            if not is_number(channel):
+                                channelData = await client.get_chat(channel)
+                                channel = channelData.id
                             await client.join_chat(channel)
                             print(f"Userbot {phone_number} joined {channel}")
-                        except Exception as e:
-                            if not "[400 USER_ALREADY_PARTICIPANT]" in str(e): print(f"Userbot {phone_number} failed to join {channel}\nCause: {str(e)}")
+                        except UserAlreadyParticipant: pass
+                        except Exception as e: 
+                            print(f"Userbot {phone_number} failed to join {channel}\nCause: {str(e)}")
+                            raise e
                         await asyncio.sleep(task.get("restTime", 0))
                 elif task["type"] == "changeNotifyChannel":
                     try:
