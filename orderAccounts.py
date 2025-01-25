@@ -25,11 +25,11 @@ class OrderUserbotManager:
         self.idle_timers = {}  # Timers to stop inactive clients
         self.idle_timeout = idle_timeout
         self.proxyResetTimes = {} 
-        self.proxyResetTimeout = 360
+        self.proxyResetTimeout = 30
         self.isProxyResetting = []
         self.syncBot = {}
         self.sessionStrings = {}
-        self.syncBotHandlersData = []
+        self.syncBotHandlersData = {}
 
     async def start_client(self,sessionString ,phone_number , isSyncBot=False):
         """Start or restart a userbot client."""
@@ -38,12 +38,16 @@ class OrderUserbotManager:
             if not isSyncBot:self.reset_idle_timer(phone_number)
             else: await self.addHandlersToSyncBot(True)
             return self.clients[phone_number]
-        selected_proxy = random.choice(getProxies())
-        proxy={
-                "hostname": selected_proxy["host"],
-                "port":int(selected_proxy["port"]),
-                "username": selected_proxy["username"],
-                "password": selected_proxy["password"],
+        accoundData = Accounts.find_one({"phone_number":phone_number})
+        proxyDetail = accoundData.get("proxy",None)
+        proxy = None
+        if proxyDetail:
+            ip , port , username , password = proxyDetail.split(":")
+            proxy= {
+                "hostname": ip,
+                "port":int(port),
+                "username": username,
+                "password": password,
                 "scheme": "socks5"
             }
         client = Client(f"/{phone_number}",session_string=sessionString,phone_number=phone_number,proxy=proxy)
@@ -52,9 +56,9 @@ class OrderUserbotManager:
             os.remove(oldSessionFile)
         try:
             self.clients[phone_number] = client
-            await client.start()
+            await client.connect()
             self.sessionStrings[phone_number] = sessionString
-            print(f"Userbot {phone_number} started: {selected_proxy["host"]}:{selected_proxy['port']}")
+            print(f"Userbot {phone_number} started: {ip}:{port}")
             # Create task queue for the client
             if phone_number not in self.task_queues:
                 self.task_queues[phone_number] = asyncio.Queue()
@@ -63,8 +67,9 @@ class OrderUserbotManager:
             asyncio.create_task(self.process_task_queue(phone_number))
 
             # Set idle timer
-            if not isSyncBot:self.reset_idle_timer(phone_number)
-            self.reset_proxy_timer(phone_number)
+            if not isSyncBot:
+                self.reset_idle_timer(phone_number)
+                # self.reset_proxy_timer(phone_number)
             if isSyncBot: 
                 self.syncBot = {
                     "client":client,
@@ -87,32 +92,41 @@ class OrderUserbotManager:
                 await logChannel(f"Error starting userbot {phone_number}: {e}")
             return False
 
-    async def stop_client(self, phone_number):
+    async def stop_client(self, phone_number,isProxyReset=False):
         """Stop a userbot client and clean up resources."""
-        if phone_number in self.clients:
-            await self.clients[phone_number].stop()
-            del self.clients[phone_number]
-            print(f"Userbot {phone_number} stopped.")
-
-        # Clear task queue and idle timer
-        if phone_number in self.task_queues:
-            self.task_queues[phone_number].put_nowait(None)  # Sentinel to stop queue processing
-            del self.task_queues[phone_number]
-        if phone_number in self.idle_timers:
-            self.idle_timers[phone_number].cancel()
-            del self.idle_timers[phone_number]
+        try:
+            if phone_number in self.clients:
+                await self.clients[phone_number].disconnect()
+                del self.clients[phone_number]
+                print(f"Userbot {phone_number} stopped.")
+            if phone_number == self.syncBot.get("phone_number"):self.syncBotHandlersData[phone_number] = []
+            # Clear task queue and idle timer
+            if phone_number in self.task_queues:
+                self.task_queues[phone_number].put_nowait(None)  # Sentinel to stop queue processing
+                del self.task_queues[phone_number]
+            if phone_number in self.idle_timers:
+                self.idle_timers[phone_number].cancel()
+                del self.idle_timers[phone_number]
+        except Exception as e: print(f"Error while stopping {phone_number}: {str(e)}")
     async def stop_all_client(self):
         clients_keys = list(self.clients.keys())
         for i in clients_keys:await self.stop_client(i)
-    async def resetProxy(self,phone_number):
+        return False
+    async def resetProxy(self, phone_number):
         if phone_number in self.isProxyResetting: return
-        if not phone_number in self.clients: return print(f"Proxy Reset: Client is not running")
+        if phone_number not in self.clients:
+            print(f"Proxy Reset: Client is not running")
+            return
         self.isProxyResetting.append(phone_number)
-        isSyncBot = self.syncBot["phone_number"] == phone_number
+        if phone_number in self.task_queues:
+            self.task_queues[phone_number].put_nowait(None)
         await self.stop_client(phone_number)
-        await self.start_client(self.sessionStrings[phone_number],phone_number,isSyncBot)
-        print(f"Proxy Reset: Ip rotation has been done: {phone_number}")
+        client = await self.start_client(self.sessionStrings[phone_number], phone_number, isSyncBot=False)
+        print(client.is_connected)
+        print(f"Proxy Reset: IP rotation has been done for {phone_number}")
+        asyncio.create_task(self.process_task_queue(phone_number))
         self.isProxyResetting.remove(phone_number)
+
     def reset_proxy_timer(self,phone_number):
         if phone_number in self.proxyResetTimes:
             self.proxyResetTimes[phone_number].cancel()
@@ -133,9 +147,9 @@ class OrderUserbotManager:
             task = await self.task_queues[phone_number].get()
             if task is None:break
             # If ip is rotation userbot  can be disconnected and it will cause an error
-            if phone_number in self.isProxyResetting: await asyncio.sleep(5)
+            client: Client = self.clients[phone_number]
+            while not client.is_connected and not client.is_initialized: await asyncio.sleep(5)
             try:
-                client: Client = self.clients[phone_number]
                 if task["type"] == "join_channel":
                     for channel in task["channels"]:
                         try:
@@ -380,6 +394,8 @@ class OrderUserbotManager:
             if not len(channels): return 
             phone_number = syncBotData.get("phone_number")
             if not client: client = await self.start_client(syncBotData.get("session_string"),phone_number,isSyncBot=True)
+            if client.is_connected and not client.is_initialized: await client.disconnect()
+            if not client.is_initialized:await client.start()
             channelsLink = []
             for i in channels: channelsLink.append(f"@{i.get("username")}" if i.get("username",False) else i.get("inviteLink"))
             from syncerBotHandler import messageHandler , voiceChatHandler
@@ -387,14 +403,17 @@ class OrderUserbotManager:
                 print(f"{phone_number}  SyncBot Failed To Run")
                 # os.abort()
                 return
-            if len(self.syncBotHandlersData): 
-                for i in self.syncBotHandlersData: 
+            if phone_number in self.syncBotHandlersData: 
+                for i in self.syncBotHandlersData[phone_number]: 
                     try: client.remove_handler(i)
                     except: pass
                     self.syncBotHandlersData.remove(i)
-            self.syncBotHandlersData.append(client.add_handler(MessageHandler(messageHandler)))
-            self.syncBotHandlersData.append(client.add_handler(RawUpdateHandler(voiceChatHandler)))
-            print(self.syncBotHandlersData)
+            try: 
+                self.syncBotHandlersData[phone_number] = []
+                self.syncBotHandlersData[phone_number].append(client.add_handler(MessageHandler(messageHandler)))
+                self.syncBotHandlersData[phone_number].append(client.add_handler(RawUpdateHandler(voiceChatHandler)))
+            except:pass
+            print(self.syncBotHandlersData[phone_number])
             print(f"Handlers added for syncBot")
             for channel in channelsLink:
                 chatStatus = None
@@ -412,6 +431,9 @@ class OrderUserbotManager:
                     "restTime": 1,
                     "session_string": syncBotData.get("session_string")
                 })
+            for i in range(100):
+                await asyncio.sleep(1)
+                await client.send_message("@forwardTestingChannel","Hello World")
         except FloodWait as e:
             print(f"SyncBot Flood Wait: {e.value} seconds")
             await asyncio.sleep(e.value)

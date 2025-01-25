@@ -5,6 +5,7 @@ from pyrogram import Client
 from pyrogram.enums import ChatMemberStatus
 import random
 from datetime import datetime
+from pyrogram.errors import *
 from config import * 
 import requests
 
@@ -69,12 +70,17 @@ def getProxies():
 
 async def joinIfNot(client:Client,chatID,inviteLink):
     try:
-        chatMember = await client.get_chat_member(chatID, "me")
+        channelInfo = await client.get_chat(inviteLink)
+        chatMember = await client.get_chat_member(channelInfo.id, "me")
         if not chatMember.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER , ChatMemberStatus.MEMBER]:
             channelData = await client.join_chat(inviteLink)
             print(f"Joined {chatID}")
             return channelData
         return await client.get_chat(chatID)
+    except UserNotParticipant:
+        channelData = await client.join_chat(inviteLink)
+        print(f"Joined {chatID}")
+        return channelData
     except Exception as e:
         print("Error in joinIfNot",e)
         return False

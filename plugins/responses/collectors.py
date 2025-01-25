@@ -847,12 +847,13 @@ async def createUserbotCode(client, message):
         await userbotClient.sign_in(phone_number=phone_number,phone_code=code,phone_code_hash=phone_code_hash)
         sessionString = await client.export_session_string()
         deleteResponse(message.from_user.id)
-        await message.reply("<b>✅ Account Authenticated Successfully</b>")
+        await message.reply("<b>✅ Account Authenticated Successfully</b>",reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]))
         botInfoFromTg = await userbotClient.get_me()
         accountData = {
             "phone_number": phone_number,
             "added_at": datetime.now(),
             "session_string": sessionString,
+            "proxy": privateProxy.replace("{sessionID}",phone_number)
         }
         accountData["username"] = botInfoFromTg.username if botInfoFromTg.username else None
         Accounts.insert_one(accountData)
@@ -883,13 +884,14 @@ async def createUserbotPassword(client, message):
         await userbotClient.check_password(password)
         sessionString = await userbotClient.export_session_string()
         deleteResponse(message.from_user.id)
-        await message.reply("<b>✅ Account Authenticated Successfully</b>")
+        await message.reply("<b>✅ Account Authenticated Successfully</b>",reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]))
         botInfoFromTg = await userbotClient.get_me()
         accountData = {
             "phone_number": phone_number,
             "added_at": datetime.now(),
             "session_string": sessionString,
-            "password": password
+            "password": password,
+            "proxy": privateProxy.replace("{sessionID}",phone_number)
         }
         accountData["username"] = botInfoFromTg.username if botInfoFromTg.username else None
         Accounts.insert_one(accountData)

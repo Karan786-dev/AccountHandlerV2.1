@@ -3,3 +3,4 @@ sessions/
 test.py
 venv/
 config.py
+proxies.txt

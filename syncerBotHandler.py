@@ -6,10 +6,10 @@ from orderAccounts import UserbotManager
 import asyncio
 
 async def messageHandler(_,message:Message):
-    print(message.text)
     channelID = message.chat.id 
     channelData = Channels.find_one({"channelID":int(channelID)})
     if not channelData: return 
+    print(message.text)
     chatUsername = message.chat.username 
     inviteLink = f"@{chatUsername}" if chatUsername else channelData.get("inviteLink")
     messageID = message.id 

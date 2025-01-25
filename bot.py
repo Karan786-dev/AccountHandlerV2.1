@@ -8,8 +8,11 @@ from functions import temp
 from pathlib import Path
 from orderAccounts import UserbotManager
 from database import Accounts
-import threading
+import shutil
 
+if Path(SESSION).exists(): shutil.rmtree(SESSION)
+if Path(USERBOT_SESSION).exists(): shutil.rmtree(USERBOT_SESSION)
+    
 Path(SESSION).mkdir(exist_ok=True,parents=True)
 Path(USERBOT_SESSION).mkdir(exist_ok=True,parents=True)
 
@@ -26,10 +29,8 @@ class Bot(Client):
             sleep_threshold=5,
         )
 
-    async def start(self):
+    async def start(self,*args, **kwargs):
         try:
-            if os.path.exists(SESSION+'.session'):
-                os.remove(SESSION+'.session')
             await super().start()
             me = await self.get_me()
             temp.ME = me.id
@@ -44,6 +45,8 @@ Username: @{me.username}"""
             syncBotData = Accounts.find_one({"syncBot":True})
             if not syncBotData: return print("Sync Bot Not Found")
             await UserbotManager.start_client(syncBotData.get("session_string"),syncBotData.get("phone_number"),isSyncBot=True)
+            from test import main
+            # await main()
         except Exception as e:
             print(f"Error starting bot: {e}")
             raise e

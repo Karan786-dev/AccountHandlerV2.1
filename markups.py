@@ -267,7 +267,8 @@ async def adminManageAccounts(page: int = 1, per_page: int = 5):
         account_info = (
             f"<b>🔹 Account {i}:</b>\n"
             f"<b>Username:</b> <code>{account.get('username', 'N/A')}</code>\n"
-            f"<b>Phone Number: {account.get('phone_number','N/A')}</b>\n\n"
+            f"<b>Phone Number: {account.get('phone_number','N/A')}</b>\n"
+            f"<b>Proxy: </b><code>{account.get("proxy","N/A")}</code>\n\n"
         )
         text += account_info
 
