@@ -41,6 +41,7 @@ class OrderUserbotManager:
         accoundData = Accounts.find_one({"phone_number":phone_number})
         proxyDetail = accoundData.get("proxy",None)
         proxy = None
+        ip , port = None
         if proxyDetail:
             ip , port , username , password = proxyDetail.split(":")
             proxy= {
@@ -58,7 +59,7 @@ class OrderUserbotManager:
             self.clients[phone_number] = client
             await client.connect()
             self.sessionStrings[phone_number] = sessionString
-            print(f"Userbot {phone_number} started: {ip}:{port}")
+            print(f"Userbot {phone_number} started: " ,f"{ip}:{port}" if proxyDetail else "Without Proxy")
             # Create task queue for the client
             if phone_number not in self.task_queues:
                 self.task_queues[phone_number] = asyncio.Queue()
