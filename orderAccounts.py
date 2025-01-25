@@ -157,7 +157,7 @@ class OrderUserbotManager:
                         try:
                             if not is_number(channel):
                                 channelData = await client.get_chat(channel)
-                                channel = channelData.id
+                                channel = getattr(channelData,"id",channel)
                             await client.join_chat(channel)
                             print(f"Userbot {phone_number} joined {channel}")
                         except UserAlreadyParticipant: pass
