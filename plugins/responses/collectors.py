@@ -853,7 +853,6 @@ async def createUserbotCode(client, message):
             "phone_number": phone_number,
             "added_at": datetime.now(),
             "session_string": sessionString,
-            "proxy": privateProxy.replace("{sessionID}",phone_number)
         }
         accountData["username"] = botInfoFromTg.username if botInfoFromTg.username else None
         Accounts.insert_one(accountData)
@@ -891,7 +890,6 @@ async def createUserbotPassword(client, message):
             "added_at": datetime.now(),
             "session_string": sessionString,
             "password": password,
-            "proxy": privateProxy.replace("{sessionID}",phone_number)
         }
         accountData["username"] = botInfoFromTg.username if botInfoFromTg.username else None
         Accounts.insert_one(accountData)
