@@ -41,7 +41,8 @@ class OrderUserbotManager:
         accoundData = Accounts.find_one({"phone_number":phone_number})
         proxyDetail = accoundData.get("proxy",None)
         proxy = None
-        ip , port = None
+        ip = None
+        port = None
         if proxyDetail:
             ip , port , username , password = proxyDetail.split(":")
             proxy= {
