@@ -80,9 +80,13 @@ async def manageChannelServices(channelID):
         f"- <b>Delay</b>: {channelData.get('voiceRestTime',0)} seconds\n"
         f"- <b>Duration</b>: {channelData.get('voiceDuration',0)} seconds\n"
         f"- <b>Join Count</b>: {channelData.get('voiceCount',0)}\n\n"
+        f"<b>🚀 Booster Status: </b>{'✅ Enabled' if channelData.get('isBoosterEnabled') else '❎ Disabled'}\n\n"
         "Use the buttons below to update your auto services preferences."
     )
     keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("❎ Disable Booster" if channelData.get("isBoosterEnabled") else "✅ Enable Booster",f"/toggle_booster {channelID}")
+        ],
         [
             InlineKeyboardButton("🔽 Views","nothing")
         ],

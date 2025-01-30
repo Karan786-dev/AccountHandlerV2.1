@@ -34,6 +34,17 @@ async def changeVoiceDurationConfirm(_:Client,query:CallbackQuery):
     text , keyboard = await manageChannelServices(channelID)
     await query.message.edit(text,reply_markup=keyboard)
    
+@Client.on_callback_query(filters.regex(r'^/toggle_booster'))
+async def toggleBoosterHandler(_,query:CallbackQuery):
+    channelID = int(query.data.split(maxsplit=1)[1])
+    channelData = Channels.find_one({"channelID":int(channelID)})
+    isEnabled = channelData.get('isBoosterEnabled',False)
+    if isEnabled: Channels.update_one({"channelID":channelID},{"$unset":{"isBoosterEnabled":True}})
+    else: Channels.update_one({"channelID":channelID},{"$set":{"isBoosterEnabled":True}})
+    text , keyboard = await manageChannelServices(channelID)
+    await query.message.edit(text,reply_markup=keyboard)
+
+
 @Client.on_callback_query(filters.regex(r'^/toggle_voice'))
 async def toggleVoiceChatHandler(_,query:CallbackQuery):
     channelID = int(query.data.split(maxsplit=1)[1])

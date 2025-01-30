@@ -81,8 +81,11 @@ async def joinIfNot(client:Client,chatID,inviteLink):
         channelData = await client.join_chat(inviteLink)
         print(f"Joined {chatID}")
         return channelData
+    except BotMethodInvalid:
+        userData = await client.get_me()
+        print(f"Failed To Join Because of bot Account: {userData.username}")
     except Exception as e:
-        print("Error in joinIfNot",e)
+        print(f"Error in joinIfNot",e)
         return False
     
 async def logChannel(string):
