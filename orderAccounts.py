@@ -10,8 +10,7 @@ from pyrogram.errors import *
 from pyrogram.raw.functions.messages import GetMessagesViews
 from database import Accounts , Channels
 from pyrogram.handlers import MessageHandler , RawUpdateHandler
-from pyrogram.raw.types import InputPeerNotifySettings , InputReportReasonSpam  , InputPeerChannel , InputNotifyPeer
-from pyrogram.raw.functions.messages import Report
+from pyrogram.raw.types import InputPeerNotifySettings , InputReportReasonSpam  , InputNotifyPeer
 from pyrogram.raw.functions.account import ReportPeer , UpdateNotifySettings 
 from pyrogram.enums import ChatMemberStatus
 from functions import *
@@ -62,16 +61,13 @@ class OrderUserbotManager:
             self.sessionStrings[phone_number] = sessionString
             print(f"Userbot {phone_number} started: " ,f"{ip}:{port}" if proxyDetail else "Without Proxy")
             # Create task queue for the client
-            if phone_number not in self.task_queues:
-                self.task_queues[phone_number] = asyncio.Queue()
+            if phone_number not in self.task_queues: self.task_queues[phone_number] = asyncio.Queue()
 
             # Process the task queue
             asyncio.create_task(self.process_task_queue(phone_number))
 
             # Set idle timer
-            if not isSyncBot:
-                self.reset_idle_timer(phone_number)
-                # self.reset_proxy_timer(phone_number)
+            if not isSyncBot: self.reset_idle_timer(phone_number)
             if isSyncBot: 
                 self.syncBot = {
                     "client":client,
@@ -79,19 +75,18 @@ class OrderUserbotManager:
                 }
                 await self.addHandlersToSyncBot(True,client=client)
             return client
+        except AuthKeyDuplicated:
+            await logChannel(f"{phone_number} Duplicate Auth Key: Account Removed")
+            await self.stop_client(phone_number)
+            Accounts.delete_one({"phone_number":str(phone_number)})
+        except AuthKeyUnregistered or UserDeactivatedBan or SessionRevoked:
+            await logChannel(f"Account Removed: {phone_number} Please login again: {str(e)}")
+            await self.stop_client(phone_number)
+            Accounts.delete_one({"phone_number":str(phone_number)})
         except Exception as e:
             del self.clients[phone_number]
             if "database is locked" in str(e) or "pyrogram.errors.SecurityCheckMismatch:" in str(e): print(str(e))
-            elif "[401 AUTH_KEY_UNREGISTERED]" in str(e) or "[401 USER_DEACTIVATED_BAN]" in str(e) or "[401 SESSION_REVOKED]" in str(e): 
-                await logChannel(f"Account Removed: {phone_number} Please login again: {str(e)}")
-                await self.stop_client(phone_number)
-                Accounts.delete_one({"phone_number":str(phone_number)})
-            elif "[406 AUTH_KEY_DUPLICATED]" in str(e):
-                await logChannel(f"{phone_number} Duplicate Auth Key: Account Removed")
-                await self.stop_client(phone_number)
-                Accounts.delete_one({"phone_number":str(phone_number)})
-            else:
-                await logChannel(f"Error starting userbot {phone_number}: {e}")
+            await logChannel(f"Error starting userbot {phone_number}: {e}")
             return False
 
     async def stop_client(self, phone_number,isProxyReset=False):
@@ -114,27 +109,6 @@ class OrderUserbotManager:
         clients_keys = list(self.clients.keys())
         for i in clients_keys:await self.stop_client(i)
         return False
-    async def resetProxy(self, phone_number):
-        if phone_number in self.isProxyResetting: return
-        if phone_number not in self.clients:
-            print(f"Proxy Reset: Client is not running")
-            return
-        self.isProxyResetting.append(phone_number)
-        if phone_number in self.task_queues:
-            self.task_queues[phone_number].put_nowait(None)
-        await self.stop_client(phone_number)
-        client = await self.start_client(self.sessionStrings[phone_number], phone_number, isSyncBot=False)
-        print(client.is_connected)
-        print(f"Proxy Reset: IP rotation has been done for {phone_number}")
-        asyncio.create_task(self.process_task_queue(phone_number))
-        self.isProxyResetting.remove(phone_number)
-
-    def reset_proxy_timer(self,phone_number):
-        if phone_number in self.proxyResetTimes:
-            self.proxyResetTimes[phone_number].cancel()
-        timer  = Timer(self.proxyResetTimeout, lambda: asyncio.run(self.resetProxy(phone_number)))
-        self.proxyResetTimes[phone_number] = timer 
-        timer.start()
     def reset_idle_timer(self, phone_number):
         """Reset or create an idle timer for a client."""
         if phone_number in self.idle_timers:
@@ -148,7 +122,6 @@ class OrderUserbotManager:
         while True:
             task = await self.task_queues[phone_number].get()
             if task is None:break
-            # If ip is rotation userbot  can be disconnected and it will cause an error
             client: Client = self.clients[phone_number]
             while not client.is_connected and not client.is_initialized: await asyncio.sleep(5)
             try:
@@ -207,13 +180,11 @@ class OrderUserbotManager:
                         print(f"{phone_number}: Flood Wait: {e.value} seconds")
                         await asyncio.sleep(e.value)
                         await self.add_task(phone_number, task)  # Requeue the task
-                    except Exception as e:
-                        if "PEER_ID_INVALID" in str(e) or "[406 CHANNEL_PRIVATE]" in str(e) or "[400 CHANNEL_INVALID]" in str(e):
-                            print(f"{phone_number}: Invalid Peer ID for {chatID}. Retrying...")
-                            await client.join_chat(task["inviteLink"])  # Attempt to rejoin
-                            await self.add_task(phone_number, task)  # Requeue the task
-                        else:
-                            print(f"{phone_number}: Failed To Report: {str(e)}")
+                    except PeerIdInvalid or ChannelPrivate or ChannelInvalid:
+                        print(f"{phone_number}: Invalid Peer ID for {chatID}. Retrying...")
+                        await client.join_chat(task["inviteLink"])  # Attempt to rejoin
+                        await self.add_task(phone_number, task)  # Requeue the task
+                    except Exception as e: print(f"{phone_number}: Failed To Report: {str(e)}")
 
                 elif task["type"] == "leave_channel":
                     for channel in task["channels"]:
@@ -222,7 +193,7 @@ class OrderUserbotManager:
                             await client.leave_chat(channel if is_number(channel) else channel)
                             print(f"Userbot {phone_number} leave {channel}")
                         except Exception as e:
-                            print(f"Userbot {phone_number} failed to leave {channel}\nCause: {str(e)}")
+                            await logChannel(f"Userbot {phone_number} failed to leave {channel}\nCause: {str(e)}")
                 elif task["type"] == "joinVoiceChat":
                     chatID = task["chatID"]
                     inviteLink = task.get("inviteLink",None)
@@ -244,19 +215,17 @@ class OrderUserbotManager:
                                 print(f"{phone_number} Leaved the call after {finalDuration}s")
                             timer = Timer(float(finalDuration),leaveVc)
                             timer.start()
-                    except Exception as e:
-                        if "[400 CHANNEL_INVALID]" in str(e):
-                            await client.join_chat(inviteLink)
-                            await self.add_task(phone_number,task)
-                        else: print(str(e))
+                    except ChannelInvalid:
+                        await client.join_chat(inviteLink)
+                        await self.add_task(phone_number,task)
+                    except Exception as e: print(str(e))
                 elif task["type"] == "leaveVoiceChat":
                     chatID = task["chatID"]
                     try:
                         app = PyTgCalls(client)
                         await app.leave_call(chatID)
                         print(f"{phone_number} had leaved the call.")
-                    except Exception as e:
-                        print("Error While Leaving Channel: "+str(e))
+                    except Exception as e: print("Error While Leaving Channel: "+str(e))
                 elif task["type"] == "reactPost":
                     postLink = task["postLink"].replace("/c","")
                     parsed_url = urlparse(postLink)
@@ -271,12 +240,11 @@ class OrderUserbotManager:
                     res = False
                     try:
                         res = await client.send_reaction(chatID,messageID,emoji=emoji)
-                    except Exception as e:
-                        if "[400 CHANNEL_INVALID]" in str(e) or "[406 CHANNEL_PRIVATE]" in str(e):
-                            await client.join_chat(task["inviteLink"])
-                            res = await client.send_reaction(chatID,messageID,emoji=emoji)
-                        else: print(f"{phone_number} Failed To React: {str(e)}")
-                    if res:print(f"Userbot {phone_number} reacted to {task['postLink']} with {emoji}")
+                    except ChannelInvalid or ChannelPrivate:
+                        await client.join_chat(task["inviteLink"])
+                        res = await client.send_reaction(chatID,messageID,emoji=emoji)
+                    except Exception as e: print(f"{phone_number} Failed To React: {str(e)}")
+                    if res: print(f"Userbot {phone_number} reacted to {task['postLink']} with {emoji}")
                 elif task['type'] == 'sendMessage':
                     textToDeliver = task['text']
                     chatIDToDeliver = task['chatID']
@@ -322,25 +290,18 @@ class OrderUserbotManager:
                         messageID = int(path_segments[1])
                     try:
                         channelPeer = await client.resolve_peer(chatID)
-                        await client.invoke(GetMessagesViews(
+                        res = await client.invoke(GetMessagesViews(
                             peer=channelPeer,
                             id=[messageID],
                             increment=True
                         ))
-                    except Exception as e:
-                        if ("[400 CHANNEL_INVALID]" in str(e)) or ("[406 CHANNEL_PRIVATE]" in str(e)):
-                            await client.join_chat(task["inviteLink"])
-                            channelPeer = await client.resolve_peer(chatID)
-                            await client.invoke(GetMessagesViews(
-                                peer=channelPeer,
-                                id=[messageID],
-                                increment=True
-                            ))
-                        else: print(f"{phone_number} Failed To View Post: {str(e)}")
-            except Exception as e:
-                if "[400 USER_ALREADY_PARTICIPANT]" in str(e): continue
-                print(f"Error processing task for {phone_number}: {e}")
-                raise e
+                        if res: print(f"{phone_number} Viewed: {postLink}")
+                    except ChannelInvalid or ChannelPrivate:
+                        await joinIfNot(client,chatID,task["inviteLink"])
+                        await self.add_task(phone_number,task)
+                    except Exception as e: print(f"{phone_number} Failed To View Post: {str(e)}")
+            except UserAlreadyParticipant: pass
+            except Exception as e: await logChannel(f"Error processing task for {phone_number}: {e}")
 
             # Reset idle timer after completing a task
             if not phone_number == self.syncBot.get("phone_number"): self.reset_idle_timer(phone_number)
@@ -356,19 +317,11 @@ class OrderUserbotManager:
         await self.task_queues[phone_number].put(task)
 
     async def bulk_order(self, userbots, task):
-        """
-        Send a bulk order to all userbots in the provided list.
-
-        :param userbots: List of userbot details. Each detail is a dict with keys:
-                         api_id, api_hash, phone_number, password.
-        :param task: The task to execute (e.g., join_channel, leave_channel, etc.)
-                     Example: {"type": "join_channel", "channel": "some_channel"}
-        """
         taskLimit = 0
         tasksGathering = []
+        taskPerformCount = random.choice(task["taskPerformCount"]) if isinstance(task["taskPerformCount"],list) else task["taskPerformCount"]
         for userbot in userbots:
             taskLimit += 1
-            
             rest_time = task.get("restTime", 0)
             if isinstance(rest_time,list) and len(rest_time) > 1:rest_time = random.randint(int(rest_time[0]),int(rest_time[1]))
             elif isinstance(rest_time,list) and len(rest_time) == 1: rest_time = rest_time[0]
@@ -390,7 +343,7 @@ class OrderUserbotManager:
                         **task,
                         "session_string": userbot["session_string"] ,
                     },))
-            if taskLimit >= task["taskPerformCount"]: break
+            if taskLimit >= int(taskPerformCount) : break
         await asyncio.gather(*tasksGathering)
         print(f"Bulk order {task['type']} added for {len(userbots)} userbots.")
     async def addHandlersToSyncBot(self,needToJoin=True,client: Client|None = None):
@@ -407,9 +360,7 @@ class OrderUserbotManager:
             for i in channels: channelsLink.append(f"@{i.get("username")}" if i.get("username",False) else i.get("inviteLink"))
             from syncerBotHandler import messageHandler , voiceChatHandler
             if not client:
-                print(f"{phone_number}  SyncBot Failed To Run")
-                # os.abort()
-                return
+                return print(f"{phone_number}  SyncBot Failed To Run")
             if phone_number in self.syncBotHandlersData: 
                 for i in self.syncBotHandlersData[phone_number]: 
                     try: client.remove_handler(i)
@@ -420,7 +371,6 @@ class OrderUserbotManager:
                 self.syncBotHandlersData[phone_number].append(client.add_handler(MessageHandler(messageHandler)))
                 self.syncBotHandlersData[phone_number].append(client.add_handler(RawUpdateHandler(voiceChatHandler)))
             except:pass
-            print(self.syncBotHandlersData[phone_number])
             print(f"Handlers added for syncBot")
             for channel in channelsLink:
                 chatStatus = None
@@ -428,9 +378,8 @@ class OrderUserbotManager:
                     chat = await client.get_chat(channel)
                     chatMember = await client.get_chat_member(chat.id, "me")
                     chatStatus = chatMember.status
-                except Exception as e: 
-                    if "[400 USER_NOT_PARTICIPANT]" in str(e): chatStatus = ChatMemberStatus.LEFT
-                    else: print(str(e))
+                except UserNotParticipant: chatStatus = ChatMemberStatus.LEFT
+                except Exception as e: print(str(e))
                 if needToJoin and not (chatStatus in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR , ChatMemberStatus.OWNER]): 
                     await self.add_task(phone_number,{
                     "type": "join_channel",
@@ -438,9 +387,6 @@ class OrderUserbotManager:
                     "restTime": 1,
                     "session_string": syncBotData.get("session_string")
                 })
-            for i in range(100):
-                await asyncio.sleep(1)
-                await client.send_message("@forwardTestingChannel","Hello World")
         except FloodWait as e:
             print(f"SyncBot Flood Wait: {e.value} seconds")
             await asyncio.sleep(e.value)

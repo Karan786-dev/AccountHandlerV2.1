@@ -88,7 +88,6 @@ async def manuallyChangeAutoServiceCount(_,message:Message):
     text , keyboard = await manageChannelServices(channelID)
     await message.reply(text,reply_markup=keyboard)
 
-
 #Add a channel
 @Client.on_message(filters.private)
 async def getChannelID(_,message:Message):
@@ -125,7 +124,189 @@ async def getChannelID(_,message:Message):
     text , keyboard = await viewChannelManage(channelID)
     await message.reply(text,reply_markup=keyboard)
     
-    
+
+
+#Dynamic Task Settings
+@Client.on_callback_query(filters.regex(r'^/dynamicSpeed'))
+async def dynamicSpeed(_,query:CallbackQuery):
+    if not checkIfTarget(query.from_user.id,"dynamicSpeed"): raise ContinuePropagation()
+    command , task , seconds = query.data.split(" ")
+    responseData = getResponse(query.from_user.id).get("payload")
+    if (not is_number(seconds)) or (float(seconds) < 0): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
+    userBots = list(Accounts.find({}))
+    await query.message.edit("<b>📋 Executing The Task...</b>")
+    if task == "views":
+        await UserbotManager.bulk_order(userBots,{
+            "type":"viewPosts",
+            "postLink": responseData.get("postLink"),
+            "restTime":float(seconds),
+            "taskPerformCount": responseData.get("numberOfViews")
+        })
+    elif task == "reactions":
+        await UserbotManager.bulk_order(userBots,{
+            "type":"reactPost",
+            "postLink": responseData.get("postLink"),
+            "restTime":float(seconds),
+            "taskPerformCount":responseData.get("numberOfReactions"),
+            "emoji":responseData.get("emoji")
+        })
+    elif task == "leaveChat":
+        channelIDs = []
+        for i in responseData.get("chatIDs"):
+            if i.startswith('https://t.me/'):  
+                channelData = await UserbotManager.getSyncBotClient().get_chat(i)
+                channelIDs.append(channelData.id)
+            else: channelIDs.append(i)
+        await UserbotManager.bulk_order(userBots,{
+            "type":"leave_channel",
+            "channels": channelIDs,
+            "restTime":float(seconds),
+            "taskPerformCount": responseData.get("membersCount")
+        })
+    elif task == "joinChat":
+        await UserbotManager.bulk_order(userBots,{
+        "type":"join_channel",
+        "channels": responseData.get("chatIDs"),
+        "restTime":float(seconds),
+        "taskPerformCount": responseData.get("membersCount")
+        })
+    elif task == "notify":
+        createResponse(query.from_user.id,"askForNotifyChangeDuration",{**responsesData,"speed":seconds})
+        numberAllowed = [
+            {"text": "Unmute", "value": 0},
+            {"text": "1 Day", "value": 86400},
+            {"text": "2 Days", "value": 172800},
+            {"text": "5 Days", "value": 432000},
+            {"text": "7 Days", "value": 604800},
+            {"text": "10 Days", "value": 864000},
+            {"text": "30 Days", "value": 2592000},
+            {"text": "Forever", "value": 2147483647},
+        ]
+        buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(i.get("text"),f"/notifyChangeDuration {i.get("value")}") for i in numberAllowed],3))
+        await query.message.edit("<b>Select the Mute Duration:</b>\n\nPlease choose the duration for muting the channel. You can select from the following options:\n<b>Alternatively</b>, you can choose Unmute to lift the mute and allow notifications from the channel again.",reply_markup=buttons)
+    elif task == "report":
+        await UserbotManager.bulk_order(userBots,{
+        "type":"reportChannel",
+        "chatID": responseData.get("channelID"),
+        "restTime":float(seconds),
+        "taskPerformCount": responseData.get("reportsCount"),
+        "inviteLink":responseData.get("inviteLink")
+        })
+    elif task == "joinVoiceChat":
+        await UserbotManager.bulk_order(userBots,{
+        "type":"joinVoiceChat",
+        "chatID": responseData.get("channelID"),
+        "restTime":float(seconds),
+        "taskPerformCount": responseData.get("membersCount"),
+        "inviteLink":responseData.get("inviteLink")
+        })
+    elif task == "votePoll":
+        await UserbotManager.bulk_order(userBots,{
+        "type":"votePoll",
+        "chatID":responseData.get("chatID"),
+        "messageID":responseData.get("messageID"),
+        "optionIndex":responseData.get("optionIndex"),
+        "restTime":float(seconds),
+        "taskPerformCount": responseData.get("numberOfVotes"),
+        "inviteLink":responseData.get("inviteLink","")
+        })
+    elif task == "sendMessage":
+        count = responseData.get("messagesCount") 
+        userBots = userBots[:int(random.choice(count if isinstance(count,list) else [count]))]
+        shuffledArray = shuffleArray(userBots)
+        msgSended = 0
+        textArray = responseData.get("text")
+        for i in shuffledArray:
+            if len(textArray) == msgSended: msgSended = 0
+            textToDeliver = textArray[msgSended]
+            msgSended += 1
+            await UserbotManager.add_task(i.get("phone_number"),{
+            "type": "sendMessage",
+            "chatID":responseData.get("chatID"),
+            "text":textToDeliver,
+            "restTime":float(seconds),
+            "session_string": i["session_string"]
+            })
+    elif task == "sendPhoto":
+        count = responseData.get("messagesCount") 
+        userBots = userBots[:int(random.choice(count if isinstance(count,list) else [count]))]
+        shuffledArray = shuffleArray(userBots)
+        msgSended = 0
+        photosSended = 0
+        textArray = responseData.get("text")
+        photosArray = responseData.get("photos")
+        restTime = float(seconds)
+        for i in shuffledArray:
+            if len(textArray) == msgSended: msgSended = 0
+            if len(photosArray) == photosSended: photosSended = 0
+            photoToDeliver = photosArray[photosSended]
+            textToDeliver = textArray[msgSended]
+            msgSended += 1
+            photosSended += 1
+            if restTime > 0:
+                print(f"Resting for {restTime} seconds before processing task for {i.get("phone_number")}")
+                await asyncio.sleep(restTime)
+            await UserbotManager.add_task(i.get("phone_number"),{
+            "type": "sendPhoto",
+            "chatID":responseData.get("chatID"),
+            "photoLink":photoToDeliver,
+            "restTime":restTime,
+            "session_string": i["session_string"],
+             })
+            await UserbotManager.add_task(i.get("phone_number"),{
+            "type": "sendMessage",
+            "chatID":responseData.get("chatID"),
+            "text":textToDeliver,
+            "restTime":restTime,
+            "session_string": i["session_string"],
+            })
+    await query.message.reply(f"<b>✅ Task Executed: {len(userBots)} Accounts</b>")
+
+@Client.on_callback_query(filters.regex(r"^/dynamicQuantity"))
+async def dynamicCountHandler(_,query:CallbackQuery):
+    if not checkIfTarget(query.from_user.id,"dynamicCount"): raise ContinuePropagation()
+    command , task , count = query.data.split(" ")
+    responseData = getResponse(query.from_user.id).get("payload")
+    if count == "Manual":
+        createResponse(query.from_user.id,"manualWorkQuantity",{**responseData,"task":task})
+        return await query.message.edit("<b>Send quantity of work\nRandom: </b>To Randomize quanitity separate minimum and maximum count with '-', like 4-10")
+    if task == "notify": createResponse(query.from_user.id,"dynamicSpeed",{**responseData,"notifyChangeCount":int(count)})
+    elif task == "report": createResponse(query.from_user.id,"dynamicSpeed",{**responseData,"reportsCount":int(count)})
+    elif task == "voiceChat": createResponse(query.from_user.id,"dynamicSpeed",{**responseData,"membersCount":int(count)})
+    elif task == "sendPhoto": createResponse(query.from_user.id,"dynamicSpeed",{**responseData,"messagesCount":int(count)})
+    elif task == "reactions": createResponse(query.from_user.id,"dynamicSpeed",{**responseData,"numberOfReactions":int(count)})
+    elif task == "votePoll": createResponse(query.from_user.id,"dynamicSpeed",{**responseData,"numberOfVotes":int(count)})
+    elif task == "views": createResponse(query.from_user.id,"dynamicSpeed",{**responseData,"numberOfViews":int(count)})
+    elif task == "leaveChat": createResponse(query.from_user.id,"dynamicSpeed",{**responseData,"membersCount":int(count)})
+    elif task == "joinChat": createResponse(query.from_user.id,"dynamicSpeed",{**responseData,"membersCount":int(count)})
+    elif task == "sendMessage": createResponse(query.from_user.id,"dynamicSpeed",{**responseData,"messagesCount":int(count)})
+    text , keyboard = getAskSpeed(task=task)
+    await query.message.edit(text,reply_markup=keyboard)
+
+
+# Dynamic Manual Work Quantity
+@Client.on_message(filters.private)
+async def manuallyWorkQuantityHandler(_:Client,message:Message):
+    if not checkIfTarget(message.from_user.id,"manualWorkQuantity"): raise ContinuePropagation()
+    responseData = getResponse(message.from_user.id).get("payload")
+    task = responseData.get("task",None)
+    count = message.text.split("-")
+    for i in count:
+        print(i)
+        if not is_number(i): return await message.reply("<b>Invalid: Please enter a valid integer amount</b>")
+    if task == "notify": createResponse(message.from_user.id,"dynamicSpeed",{**responseData,"notifyChangeCount":count})
+    elif task == "report": createResponse(message.from_user.id,"dynamicSpeed",{**responseData,"reportsCount":count})
+    elif task == "voiceChat": createResponse(message.from_user.id,"dynamicSpeed",{**responseData,"membersCount":count})
+    elif task == "sendPhoto": createResponse(message.from_user.id,"dynamicSpeed",{**responseData,"messagesCount":count})
+    elif task == "reactions": createResponse(message.from_user.id,"dynamicSpeed",{**responseData,"numberOfReactions":count})
+    elif task == "votePoll": createResponse(message.from_user.id,"dynamicSpeed",{**responseData,"numberOfVotes":count})
+    elif task == "views": createResponse(message.from_user.id,"dynamicSpeed",{**responseData,"numberOfViews":count})
+    elif task == "leaveChat": createResponse(message.from_user.id,"dynamicSpeed",{**responseData,"membersCount":count})
+    elif task == "joinChat": createResponse(message.from_user.id,"dynamicSpeed",{**responseData,"membersCount":count})
+    elif task == "sendMessage": createResponse(message.from_user.id,"dynamicSpeed",{**responseData,"messagesCount":count})
+    text , keyboard = getAskSpeed(task=task)
+    await message.reply(text,reply_markup=keyboard)
+
 # Function to change Notification Of Channel
 @Client.on_message(filters.private)
 async def changeNotifyChannelGetIDHandler(_:Client,message:Message):
@@ -142,49 +323,11 @@ async def changeNotifyChannelGetIDHandler(_:Client,message:Message):
             channelInfo = await syncBot.join_chat(channelLink)
         channelID = channelInfo.id 
     else: channelID = channelLink
-    numberAllowed = [10,20,30,40,50,100,300]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/notifyChangeCount {i}") for i in numberAllowed],3))
-    await message.reply("<b>👀 Enter The No. Of Users To Mute/Unmute This Channel:</b>",reply_markup=buttons)
     deleteResponse(message.from_user.id)
-    createResponse(message.from_user.id,"notifyChangeCount",{"channelID":channelID,"inviteLink":channelLink})
+    text , keyboard = getAskWorkQuantity(task="notify")
+    await message.reply(text,reply_markup=keyboard)
+    createResponse(message.from_user.id,"dynamicCount",{"channelID":channelID,"inviteLink":channelLink})
 
-@Client.on_callback_query(filters.regex(r'^/notifyChangeCount'))
-async def notifyChangeCountHandler(_,query:CallbackQuery):
-    if not checkIfTarget(query.from_user.id,"notifyChangeCount"): raise ContinuePropagation()
-    count = query.data.split(" ")[1]
-    responseData = getResponse(query.from_user.id).get("payload")
-    deleteResponse(query.from_user.id)
-    createResponse(query.from_user.id,"askSpeedOfnotifyChange",{**responseData,"notifyChangeCount":int(count)})
-    numberAllowed = [0,1,5,10,25,50,60]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/notifyChangeSpeed {i}") for i in numberAllowed],3))
-    await query.message.edit(
-        "<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
-        "Instant = All Change Notifcation Settings Instantly.\n"
-        "1 = Each 1 Second 1 user\n"
-        "60 = Each 1 Minute 1 user",
-        reply_markup=buttons
-    )
-    
-@Client.on_callback_query(filters.regex(r'^/notifyChangeSpeed'))
-async def notifyChangeSpeedHandler(_:Client,query:CallbackQuery):
-    if not checkIfTarget(query.from_user.id,"askSpeedOfnotifyChange"): raise ContinuePropagation()
-    speed = query.data.split(" ")[1]
-    responsesData = getResponse(query.from_user.id).get("payload")
-    deleteResponse(query.from_user.id)
-    createResponse(query.from_user.id,"askForNotifyChangeDuration",{**responsesData,"speed":int(speed)})
-    numberAllowed = [
-        {"text": "Unmute", "value": 0},
-        {"text": "1 Day", "value": 86400},
-        {"text": "2 Days", "value": 172800},
-        {"text": "5 Days", "value": 432000},
-        {"text": "7 Days", "value": 604800},
-        {"text": "10 Days", "value": 864000},
-        {"text": "30 Days", "value": 2592000},
-        {"text": "Forever", "value": 2147483647},
-    ]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(i.get("text"),f"/notifyChangeDuration {i.get("value")}") for i in numberAllowed],3))
-    await query.message.edit("<b>Select the Mute Duration:</b>\n\nPlease choose the duration for muting the channel. You can select from the following options:\n<b>Alternatively</b>, you can choose Unmute to lift the mute and allow notifications from the channel again.",reply_markup=buttons)
-    
 @Client.on_callback_query(filters.regex(r'^/notifyChangeDuration'))
 async def notifyChangeDurationHandler(_:Client,query:CallbackQuery):
     if not checkIfTarget(query.from_user.id,"askForNotifyChangeDuration"): raise ContinuePropagation()
@@ -219,11 +362,10 @@ async def getChannelIDToJoinVoice(_,message):
     channelData = await syncBot.get_chat(channelLink)
     channelID = channelData.id if not channelLink.startswith("@") else channelLink
     await message.reply("<b>✅ SyncBot Joined The Channel Successfully</b>")
-    numberAllowed = [10,20,30,40,50,100,300]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/voiceCount {i}") for i in numberAllowed],3))
-    await message.reply("<b>👀 Enter The No. Of Users To Join This Voice Call:</b>",reply_markup=buttons)
+    text , keyboard = getAskWorkQuantity(task="notify")
+    await message.reply(text,reply_markup=keyboard)
     deleteResponse(message.from_user.id)
-    createResponse(message.from_user.id,"voiceChatMembersCount",{"channelID":channelID,"inviteLink":channelLink})
+    createResponse(message.from_user.id,"dynamicCount",{"channelID":channelID,"inviteLink":channelLink})
     
 @Client.on_message(filters.private)
 async def getChatIDTOReport(_,message:Message):
@@ -231,95 +373,13 @@ async def getChatIDTOReport(_,message:Message):
     channelLink = message.text
     if not channelLink.startswith("@") and not channelLink.startswith("https://t.me/"): return await message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
     syncBot = UserbotManager.getSyncBotClient()
-    try: 
-        # if not channelLink.startswith("@"): await syncBot.join_chat(channelLink)
-        pass
-    except Exception as e:
-        if not "[400 USER_ALREADY_PARTICIPANT]" in str(e): return await message.reply(f"<b>⚠️ Failed To Join Channel</b>: {str(e)}")
-        else:print(str(e))
     channelData = await syncBot.get_chat(channelLink)
     channelID = channelData.id if not channelLink.startswith("@") else channelLink
     await message.reply("<b>✅ SyncBot Joined The Channel Successfully</b>")
-    numberAllowed = [10,20,30,40,50,100,300]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/reportCount {i}") for i in numberAllowed],3))
-    await message.reply("<b>👀 Enter The No. Of Reports You want to send</b>",reply_markup=buttons)
+    text , keyboard = getAskWorkQuantity(task="report")
+    await message.reply(text,reply_markup=keyboard)
     deleteResponse(message.from_user.id)
-    createResponse(message.from_user.id,"reportCountSend",{"channelID":channelID,"inviteLink":channelLink})
-    
-@Client.on_callback_query(filters.regex(r'^/reportCount'))
-async def getReportCountCallbackHandler(_,query:CallbackQuery):
-    if not checkIfTarget(query.from_user.id,"reportCountSend"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    reportsCount = query.data.split(maxsplit=1)[1]
-    if (not is_number(reportsCount)) or (float(reportsCount) < 1): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    createResponse(query.from_user.id,"askSpeedOfReports",{**responseData,"reportsCount":int(reportsCount)})
-    numberAllowed = [0,1,5,10,25,50,60]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/reportSpeed {i}") for i in numberAllowed],3))
-    await query.message.edit(
-        "<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
-        "Instant = All The reports Comes in Instantly.\n"
-        "1 = Each 1 Second 1 reports\n"
-        "60 = Each 1 Minute 1 reports",
-        reply_markup=buttons
-    )
-
-@Client.on_callback_query(filters.regex(r'^/reportSpeed'))
-async def askSpeedOfReportsHandler(_,query):
-    if not checkIfTarget(query.from_user.id,"askSpeedOfReports"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    seconds = query.data.split(maxsplit=1)[1]
-    if (not is_number(seconds)) or (float(seconds) < 0): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    userBots = list(Accounts.find().limit(int(responseData.get("reportsCount"))))
-    await query.message.edit("<b>📋 Executing The Task...</b>")
-    await UserbotManager.bulk_order(userBots,{
-        "type":"reportChannel",
-        "chatID": responseData.get("channelID"),
-        "restTime":float(seconds),
-        "taskPerformCount": int(responseData.get("reportsCount")),
-        "inviteLink":responseData.get("inviteLink")
-    })
-    await query.message.reply(f"<b>✅ Task Executed: {len(userBots)} Accounts</b>")
-    
-    
-
-@Client.on_callback_query(filters.regex(r'^/voiceCount'))
-async def getVoiceChatMembersCount(_,query):
-    if not checkIfTarget(query.from_user.id,"voiceChatMembersCount"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    membersCount = query.data.split(maxsplit=1)[1]
-    if (not is_number(membersCount)) or (float(membersCount) < 1): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    numberAllowed = [0,1,5,10,25,50,60]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/voiceSpeed {i}") for i in numberAllowed],3))
-    await query.message.edit(
-        "<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
-        "Instant = All The members Comes in Instantly.\n"
-        "1 = Each 1 Second 1 members\n"
-        "60 = Each 1 Minute 1 members",
-        reply_markup=buttons
-    )
-    createResponse(query.from_user.id,"askSpeedOfVoiceChat",{**responseData,"membersCount":int(membersCount)})
-
-@Client.on_callback_query(filters.regex(r'^/voiceSpeed'))
-async def askSpeedOfVoiceChatHandler(_,query):
-    if not checkIfTarget(query.from_user.id,"askSpeedOfVoiceChat"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    seconds = query.data.split(maxsplit=1)[1]
-    if (not is_number(seconds)) or (float(seconds) < 0): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    userBots = list(Accounts.find().limit(int(responseData.get("membersCount"))))
-    await query.message.edit("<b>📋 Executing The Task...</b>")
-    await UserbotManager.bulk_order(userBots,{
-        "type":"joinVoiceChat",
-        
-        "chatID": responseData.get("channelID"),
-        "restTime":float(seconds),
-        "taskPerformCount": int(responseData.get("membersCount")),
-        "inviteLink":responseData.get("inviteLink")
-    })
-    await query.message.reply(f"<b>✅ Task Executed: {len(userBots)} Accounts</b>")
+    createResponse(message.from_user.id,"dynamicCount",{"channelID":channelID,"inviteLink":channelLink})
     
 #Function to get Photos
 @Client.on_message(filters.private)
@@ -369,69 +429,9 @@ async def getMessageDeliverIDWithPhotoHandler(_,message):
     responseData = getResponse(message.from_user.id).get("payload")
     chatID = message.text 
     deleteResponse(message.from_user.id)
-    createResponse(message.from_user.id,"askForMessagesCountWithPhoto",{**responseData,"chatID":chatID})
-    numberAllowed = [2,10,20,30,40,50,100,300]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/messagesCountWithPhoto {i}") for i in numberAllowed],3))
-    await message.reply("❓ How many messages do you want to send?",reply_markup=buttons)
-
-@Client.on_callback_query(filters.regex(r'^/messagesCountWithPhoto'))
-async def askForMessagesCountWithPhotoHandler(_,query):
-    if not checkIfTarget(query.from_user.id,"askForMessagesCountWithPhoto"): raise ContinuePropagation
-    responseData = getResponse(query.from_user.id).get("payload")
-    messagesCount = query.data.split(maxsplit=1)[1]
-    if (not is_number(messagesCount)) or (float(messagesCount) < 1): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    createResponse(query.from_user.id,"askForSpeedOfWorkWithPhoto",{**responseData,"messagesCount":int(messagesCount)})
-    numberAllowed = [0,1,5,10,25,50,60]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/messagesSpeedWithPhoto {i}") for i in numberAllowed],3))
-    await query.message.edit(
-        "<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
-        "Instant = All The Message Comes in Instantly.\n"
-        "1 = Each 1 Second 1 Message\n"
-        "60 = Each 1 Minute 1 Message",
-        reply_markup=buttons
-    )
-
-@Client.on_callback_query(filters.regex(r'^/messagesSpeedWithPhoto'))
-async def askForSpeedOfWorkWithPhoto(_,query):
-    if not checkIfTarget(query.from_user.id,"askForSpeedOfWorkWithPhoto"): raise ContinuePropagation
-    responseData = getResponse(query.from_user.id).get("payload")
-    seconds = query.data.split(maxsplit=1)[1]
-    if (not is_number(seconds)) or (float(seconds) < 0): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    userBots = list(Accounts.find({}).limit(int(responseData.get("messagesCount"))))
-    shuffledArray = shuffleArray(userBots)
-    await query.message.edit("<b>📋 Executing The Task...</b>")
-    msgSended = 0
-    photosSended = 0
-    textArray = responseData.get("text")
-    photosArray = responseData.get("photos")
-    restTime = float(seconds)
-    for i in shuffledArray:
-        if len(textArray) == msgSended: msgSended = 0
-        if len(photosArray) == photosSended: photosSended = 0
-        photoToDeliver = photosArray[photosSended]
-        textToDeliver = textArray[msgSended]
-        msgSended += 1
-        photosSended += 1
-        if restTime > 0:
-            print(f"Resting for {restTime} seconds before processing task for {i.get("phone_number")}")
-            await asyncio.sleep(restTime)
-        await UserbotManager.add_task(i.get("phone_number"),{
-        "type": "sendPhoto",
-        "chatID":responseData.get("chatID"),
-        "photoLink":photoToDeliver,
-        "restTime":restTime,
-        "session_string": i["session_string"],
-    })
-        await UserbotManager.add_task(i.get("phone_number"),{
-        "type": "sendMessage",
-        "chatID":responseData.get("chatID"),
-        "text":textToDeliver,
-        "restTime":restTime,
-        "session_string": i["session_string"],
-    })
-    await query.message.reply(f"<b>✅ Task Executed: {len(userBots)} Accounts</b>")
+    createResponse(message.from_user.id,"dynamicCount",{**responseData,"chatID":chatID})
+    text , keyboard = getAskWorkQuantity(task="sendPhoto")
+    await message.reply(text,reply_markup=keyboard)
 
 # Function to vote in a pool
 @Client.on_message(filters.private)
@@ -477,50 +477,10 @@ async def voteOnPollCallback(_,query:CallbackQuery):
     if not checkIfTarget(query.from_user.id,"voteOnPollCallback"): raise ContinuePropagation()
     responseData = getResponse(query.from_user.id).get("payload")
     optionIndex = int(query.data.split(maxsplit=1)[1])
-    numberAllowed = [10,20,30,40,50,100,300]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/votesCount {i}") for i in numberAllowed],3))
-    await query.message.edit("<b>👀 Enter The No. Of Votes:</b>",reply_markup=buttons)
+    text , keyboard = getAskWorkQuantity(task="votePoll")
+    await query.message.edit(text,reply_markup=keyboard)
     deleteResponse(query.from_user.id)
-    createResponse(query.from_user.id,"numberOfVotesOnPoll",{**responseData,"optionIndex":optionIndex})
-    
-@Client.on_callback_query(filters.regex(r'^/votesCount'))
-async def getNumberOfVotesOnPoll(_,query):
-    if not checkIfTarget(query.from_user.id,"numberOfVotesOnPoll"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    numberOFVotes = query.data.split(maxsplit=1)[1]
-    if (not is_number(numberOFVotes)) or (float(numberOFVotes) < 1): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    numberAllowed = [0,1,5,10,25,50,60]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/votesSpeed {i}") for i in numberAllowed],3))
-    await query.message.edit(
-        "<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
-        "Instant = All The votes Comes in Instantly.\n"
-        "1 = Each 1 Second 1 votes\n"
-        "60 = Each 1 Minute 1 votes",
-        reply_markup=buttons
-    )
-    createResponse(query.from_user.id,"askSpeedOFVotes",{**responseData,"numberOfVotes":int(numberOFVotes)})
-    
-@Client.on_callback_query(filters.regex(r'^/votesSpeed'))
-async def askSpeedOFVotesHandler(_,query):
-    if not checkIfTarget(query.from_user.id,"askSpeedOFVotes"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    seconds = query.data.split(maxsplit=1)[1]
-    if (not is_number(seconds)) or (float(seconds) < 0): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    await query.message.edit("<b>📋 Executing The Task...</b>")
-    userbots = list(Accounts.find({}))
-    print("Hello :) ",responseData.get("inviteLink",""))
-    await UserbotManager.bulk_order(userbots,{
-        "type":"votePoll",
-        "chatID":responseData.get("chatID"),
-        "messageID":responseData.get("messageID"),
-        "optionIndex":responseData.get("optionIndex"),
-        "restTime":float(seconds),
-        "taskPerformCount": int(responseData.get("numberOfVotes")),
-        "inviteLink":responseData.get("inviteLink","")
-    })
-    await query.message.reply(f"<b>✅ Task Executed: {len(userbots)} Account</b>")
+    createResponse(query.from_user.id,"dynamicCount",{**responseData,"optionIndex":optionIndex})
 
 
 @Client.on_message(filters.private) 
@@ -556,46 +516,9 @@ async def getEmojiToReact(_,message):
     responseData = getResponse(message.from_user.id).get("payload")
     emojiToReact = message.text.split(",") 
     deleteResponse(message.from_user.id)
-    numberAllowed = [10,20,30,40,50,100,300]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/reactionsCount {i}") for i in numberAllowed],3))
-    await message.reply("<b>👀 Enter The No. Of Reactions:</b>",reply_markup=buttons)
-    createResponse(message.from_user.id,"numberOfReactionsOnPost",{**responseData,"emoji":emojiToReact})
-
-@Client.on_callback_query(filters.regex(r'^/reactionsCount'))
-async def getNumberOfReactionsOnPost(_,query):
-    if not checkIfTarget(query.from_user.id,"numberOfReactionsOnPost"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    numberOFViews = query.data.split(maxsplit=1)[1]
-    if (not is_number(numberOFViews)) or (float(numberOFViews) < 1): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    numberAllowed = [0,1,5,10,25,50,60]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/reactionsSpeed {i}") for i in numberAllowed],3))
-    await query.message.edit(
-        "<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
-        "Instant = All The reactions Comes in Instantly.\n"
-        "1 = Each 1 Second 1 reactions\n"
-        "60 = Each 1 Minute 1 reactions",
-        reply_markup=buttons
-    )
-    createResponse(query.from_user.id,"askSpeedOFReactions",{**responseData,"numberOfReactions":int(numberOFViews)})
-    
-@Client.on_callback_query(filters.regex(r'^/reactionsSpeed'))
-async def askSpeedOFReactionsHandler(_,query):
-    if not checkIfTarget(query.from_user.id,"askSpeedOFReactions"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    seconds = query.data.split(maxsplit=1)[1]
-    if (not is_number(seconds)) or (float(seconds) < 0): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    userBots = list(Accounts.find({}).limit(int(responseData.get("numberOfReactions"))))
-    await query.message.edit("<b>📋 Executing The Task...</b>")
-    await UserbotManager.bulk_order(userBots,{
-        "type":"reactPost",
-        "postLink": responseData.get("postLink"),
-        "restTime":float(seconds),
-        "taskPerformCount": int(responseData.get("numberOfReactions")),
-        "emoji":responseData.get("emoji")
-    })
-    await query.message.reply(f"<b>✅ Task Executed: {len(userBots)} Accounts</b>")
+    text , keyboard = getAskWorkQuantity(task="reactions")
+    await message.reply(text,reply_markup=keyboard)
+    createResponse(message.from_user.id,"dynamicCount",{**responseData,"emoji":emojiToReact})
 
 #Function to send views
 @Client.on_message(filters.private)
@@ -604,45 +527,10 @@ async def getPostLinkToSendViews(_,message):
     postLink = str(message.text).replace("/c","")
     if not postLink.startswith('https://'): return await message.reply("<b>⚠️ Invalid input:  Please enter a valid url</b>")
     deleteResponse(message.from_user.id)
-    numberAllowed = [10,20,30,40,50,100,300]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/viewsCount {i}") for i in numberAllowed],3))
-    await message.reply("<b>👀 Enter The No. Of Views:</b>",reply_markup=buttons)
-    createResponse(message.from_user.id,"numberOfViewsOnPost",{"postLink":postLink})
-    
-@Client.on_callback_query(filters.regex(r'^/viewsCount'))
-async def getNumberOfViewsOnPost(_,query):
-    if not checkIfTarget(query.from_user.id,"numberOfViewsOnPost"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    numberOFViews = query.data.split(maxsplit=1)[1]
-    if (not is_number(numberOFViews)) or (float(numberOFViews) < 1): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    createResponse(query.from_user.id,"askSpeedOFViews",{**responseData,"numberOfViews":int(numberOFViews)})
-    numberAllowed = [0,1,5,10,25,50,60]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/viewsSpeed {i}") for i in numberAllowed],3))
-    await query.message.edit(
-        "<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
-        "Instant = All The views Comes in Instantly.\n"
-        "1 = Each 1 Second 1 views\n"
-        "60 = Each 1 Minute 1 views",
-        reply_markup=buttons
-    )
-    
-@Client.on_callback_query(filters.regex(r'^/viewsSpeed'))
-async def askSpeedOFviewsHandler(_,query):
-    if not checkIfTarget(query.from_user.id,"askSpeedOFViews"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    seconds = query.data.split(maxsplit=1)[1]
-    if (not is_number(seconds)) or (float(seconds) < 0): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    userBots = list(Accounts.find().limit(int(responseData.get("numberOfViews"))))
-    await query.message.edit("<b>📋 Executing The Task...</b>")
-    await UserbotManager.bulk_order(userBots,{
-        "type":"viewPosts",
-        "postLink": responseData.get("postLink"),
-        "restTime":float(seconds),
-        "taskPerformCount": int(responseData.get("numberOfViews"))
-    })
-    await query.message.reply(f"<b>✅ Task Executed: {len(userBots)} Accounts</b>")
+    text , keyboard = getAskWorkQuantity(task="views")
+    await message.reply(text,reply_markup=keyboard)
+    createResponse(message.from_user.id,"dynamicCount",{"postLink":postLink})
+
 
 #Leave Channels Functions
 @Client.on_message(filters.private)
@@ -651,52 +539,11 @@ async def getChatIDtoleave(_,message):
     chatID = message.text 
     chatIDArray = chatID.split("|")
     deleteResponse(message.from_user.id)
-    numberAllowed = [10,20,30,40,50,100,300]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/membersLeaveCount {i}") for i in numberAllowed],3))
-    await message.reply("<b>❓ How Many Members You Want To Leave?</b>",reply_markup=buttons)
-    createResponse(message.from_user.id,"leaveChatMembersCount",{"chatIDs":chatIDArray})
+    text , keyboard = getAskWorkQuantity(task="leaveChat")
+    await message.reply(text,reply_markup=keyboard)
+    createResponse(message.from_user.id,"dynamicCount",{"chatIDs":chatIDArray})
+
     
-    
-@Client.on_callback_query(filters.regex(r'^/membersLeaveCount'))
-async def getleaveMembersCount(_,query):
-    if not checkIfTarget(query.from_user.id,"leaveChatMembersCount"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    membersCount = query.data.split(maxsplit=1)[1]
-    if (not is_number(membersCount)) or (float(membersCount) < 1): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    createResponse(query.from_user.id,"askForSpeedOfLeave",{**responseData,"membersCount":int(membersCount)})
-    numberAllowed = [0,1,5,10,25,50,60]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/membersLeaveSpeed {i}") for i in numberAllowed],3))
-    await query.message.edit(
-        "<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
-        "Instant = All The members Comes in Instantly.\n"
-        "1 = Each 1 Second 1 members\n"
-        "60 = Each 1 Minute 1 members",
-        reply_markup=buttons
-    )
-    
-@Client.on_callback_query(filters.regex(r'^/membersLeaveSpeed'))
-async def askForSpeedOfleaveHandler(_,query):
-    if not checkIfTarget(query.from_user.id,"askForSpeedOfLeave"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    seconds = query.data.split(maxsplit=1)[1]
-    if (not is_number(seconds)) or (float(seconds) < 0): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    userBots = list(Accounts.find().limit(int(responseData.get("membersCount"))))
-    await query.message.edit("<b>📋 Executing The Task...</b>")
-    channelIDs = []
-    for i in responseData.get("chatIDs"):
-        if i.startswith('https://t.me/'):  
-            channelData = await UserbotManager.getSyncBotClient().get_chat(i)
-            channelIDs.append(channelData.id)
-        else: channelIDs.append(i)
-    await UserbotManager.bulk_order(userBots,{
-        "type":"leave_channel",
-        "channels": channelIDs,
-        "restTime":float(seconds),
-        "taskPerformCount": int(responseData.get("membersCount"))
-    })
-    await query.message.reply(f"<b>✅ Task Executed: {len(userBots)} Accounts</b>")
 
 #Join Channel Functions
 @Client.on_message(filters.private)
@@ -705,46 +552,9 @@ async def getChatIDtoJoin(_,message):
     chatID = message.text 
     chatIDArray = chatID.split("|")
     deleteResponse(message.from_user.id)
-    numberAllowed = [10,20,30,40,50,100,300]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/membersCount {i}") for i in numberAllowed],3))
-    await message.reply("<b>❓ How Many Members Need?</b>",reply_markup=buttons)
-    createResponse(message.from_user.id,"joinChatMembersCount",{"chatIDs":chatIDArray})
-    
-    
-@Client.on_callback_query(filters.regex(r'^/membersCount'))
-async def getJoinMembersCount(_,query):
-    if not checkIfTarget(query.from_user.id,"joinChatMembersCount"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    membersCount = query.data.split(maxsplit=1)[1]
-    if (not is_number(membersCount)) or (float(membersCount) < 1): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    createResponse(query.from_user.id,"askForSpeedOfJoin",{**responseData,"membersCount":int(membersCount)})
-    numberAllowed = [0,1,5,10,25,50,60]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/membersSpeed {i}") for i in numberAllowed],3))
-    await query.message.edit(
-        "<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
-        "Instant = All The members Comes in Instantly.\n"
-        "1 = Each 1 Second 1 members\n"
-        "60 = Each 1 Minute 1 members",
-        reply_markup=buttons
-    )
-    
-@Client.on_callback_query(filters.regex(r'^/membersSpeed'))
-async def askForSpeedOfJoinHandler(_,query):
-    if not checkIfTarget(query.from_user.id,"askForSpeedOfJoin"): raise ContinuePropagation()
-    responseData = getResponse(query.from_user.id).get("payload")
-    seconds = query.data.split(maxsplit=1)[1]
-    if (not is_number(seconds)) or (float(seconds) < 0): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    userBots = list(Accounts.find().limit(int(responseData.get("membersCount"))))
-    await query.message.edit("<b>📋 Executing The Task...</b>")
-    await UserbotManager.bulk_order(userBots,{
-        "type":"join_channel",
-        "channels": responseData.get("chatIDs"),
-        "restTime":float(seconds),
-        "taskPerformCount": int(responseData.get("membersCount"))
-    })
-    await query.message.reply(f"<b>✅ Task Executed: {len(userBots)} Accounts</b>")
+    text , keyboard = getAskWorkQuantity(task="joinChat")
+    await message.reply(text,reply_markup=keyboard)
+    createResponse(message.from_user.id,"dynamicCount",{"chatIDs":chatIDArray})
 
 
 @Client.on_message(filters.private)
@@ -753,7 +563,6 @@ async def getMessageToSendHandler(_,message):
     try:
         text = str(message.text)
         textArray = text.split("|") if "|" in text else [text]
-        print(textArray)
         deleteResponse(message.from_user.id)
         await message.reply("📩 Send the username of the person you want to send messages.")
         createResponse(message.from_user.id,"messageDeliverChatID",{"text":textArray})
@@ -766,56 +575,10 @@ async def getMessageDeliverIDHandler(_,message):
     responseData = getResponse(message.from_user.id).get("payload")
     chatID = message.text 
     deleteResponse(message.from_user.id)
-    createResponse(message.from_user.id,"askForMessagesCount",{**responseData,"chatID":chatID})
-    numberAllowed = [2,10,20,30,40,50,100,300]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/messagesCount {i}") for i in numberAllowed],3))
-    await message.reply("❓ How many messages do you want to send?",reply_markup=buttons)
+    createResponse(message.from_user.id,"dynamicCount",{**responseData,"chatID":chatID})
+    text , keyboard = getAskWorkQuantity(task="sendMessage")
+    await message.reply(text,reply_markup=keyboard)
     
-@Client.on_callback_query(filters.regex(r'^/messagesCount'))
-async def askForMessagesCountHandler(_,query):
-    if not checkIfTarget(query.from_user.id,"askForMessagesCount"): raise ContinuePropagation
-    responseData = getResponse(query.from_user.id).get("payload")
-    messagesCount = query.data.split(maxsplit=1)[1]
-    if (not is_number(messagesCount)) or (float(messagesCount) < 1): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    createResponse(query.from_user.id,"askForSpeedOfWork",{**responseData,"messagesCount":int(messagesCount)})
-    numberAllowed = [0,1,5,10,25,50,60]
-    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/messagesSpeed {i}") for i in numberAllowed],3))
-    await query.message.edit(
-        "<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
-        "Instant = All The Message Comes in Instantly.\n"
-        "1 = Each 1 Second 1 Message\n"
-        "60 = Each 1 Minute 1 Message",
-        reply_markup=buttons
-    )
-    pass
-    
-    
-@Client.on_callback_query(filters.regex(r'^/messagesSpeed'))
-async def askForSpeedOfWork(_,query):
-    if not checkIfTarget(query.from_user.id,"askForSpeedOfWork"): raise ContinuePropagation
-    responseData = getResponse(query.from_user.id).get("payload")
-    seconds = query.data.split(maxsplit=1)[1]
-    if (not is_number(seconds)) or (float(seconds) < 0): return await query.message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
-    deleteResponse(query.from_user.id)
-    userBots = list(Accounts.find().limit(int(responseData.get("messagesCount"))))
-    shuffledArray = shuffleArray(userBots)
-    await query.message.edit("<b>📋 Executing The Task...</b>")
-    msgSended = 0
-    textArray = responseData.get("text")
-    for i in shuffledArray:
-        if len(textArray) == msgSended: msgSended = 0
-        textToDeliver = textArray[msgSended]
-        msgSended += 1
-        await UserbotManager.add_task(i.get("phone_number"),{
-        "type": "sendMessage",
-        "chatID":responseData.get("chatID"),
-        "text":textToDeliver,
-        "restTime":float(seconds),
-        "session_string": i["session_string"]
-    })
-    await query.message.reply(f"<b>✅ Task Executed: {len(userBots)} Accounts</b>")
-
 
 @Client.on_message(filters.private)
 async def createUserbotPhoneNumber(client, message):

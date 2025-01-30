@@ -321,3 +321,19 @@ async def account_details_view(account_info,backCommand="/manageAccountListAdmin
     if account_info.get("syncBot",False): keyboard.pop(keyboard.index(roleAssignButton))
     return text, InlineKeyboardMarkup(keyboard)
 
+
+
+def getAskWorkQuantity(text=None,task=None):
+    numberAllowed = [2,10,20,30,40,50,100,300,"Manual"]
+    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/dynamicQuantity {task} {i}") for i in numberAllowed],3))
+    if not text: text = "<b>👀 Enter work Quantity:</b>"
+    return text , buttons
+
+def getAskSpeed(task,text=None):
+    numberAllowed = [0,1,5,10,25,50,60]
+    buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i) if (i != 0) else "Instant",f"/dynamicSpeed {task} {i}") for i in numberAllowed],3))
+    if not text: text = ("<b>⚡️ Enter The Speed Of The Work: ( In Seconds )</b>\n"
+        "Instant = Instantly\n"
+        "1 = Each 1 Second 1 user\n"
+        "60 = Each 1 Minute 1 user")
+    return text , buttons
