@@ -417,7 +417,7 @@ class OrderUserbotManager:
                 
                 while True:
                     try:
-                        await asyncio.sleep(1800)
+                        await asyncio.sleep(200)
                         if not client.is_connected: 
                             logChannel(f"SyncBot {phone_number} is Disconnected. Trying to restart...")
                             await self.addHandlersToSyncBot(needToJoin,client)
