@@ -4,7 +4,7 @@ import sys
 import subprocess
 from config import SESSION, API_HASH, API_ID, BOT_TOKEN, USERBOT_SESSION
 from pyrogram import Client, idle  # type: ignore
-from functions import temp
+from functions import temp , logChannel
 from pathlib import Path
 from orderAccounts import UserbotManager
 from database import Accounts
@@ -37,8 +37,8 @@ class Bot(Client):
             temp.U_NAME = me.username
             temp.B_NAME = me.first_name
             self.username = '@' + me.username
-            print(f"Bot started!!!!!")
-            print(
+            logChannel(f"Bot started!!!!!")
+            logChannel(
                 f"""Bot Information:
 Username: @{me.username}"""
             )
