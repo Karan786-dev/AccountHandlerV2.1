@@ -166,6 +166,7 @@ class OrderUserbotManager:
                         if res:print(f"{phone_number} {"Muted" if duration else "Unmuted"} {chatID}")
                     except Exception as err:
                         logChannel(f"Error While Trying To {"Mute" if duration else "Unmute"} {chatID} from {phone_number}: {err}")
+                        raise e
                 elif task["type"] == "reportChannel":
                     chatID = task["chatID"]
                     try:
@@ -187,7 +188,9 @@ class OrderUserbotManager:
                         print(f"{phone_number}: Invalid Peer ID for {chatID}. Retrying...")
                         await client.join_chat(task["inviteLink"])  # Attempt to rejoin
                         await self.add_task(phone_number, task)  # Requeue the task
-                    except Exception as e: logChannel(f"{phone_number}: Failed To Report: {str(e)}")
+                    except Exception as e: 
+                        logChannel(f"{phone_number}: Failed To Report: {str(e)}")
+                        raise e
 
                 elif task["type"] == "leave_channel":
                     for channel in task["channels"]:
@@ -197,6 +200,7 @@ class OrderUserbotManager:
                             print(f"Userbot {phone_number} leaved {channel}")
                         except Exception as e:
                             print(f"Userbot {phone_number} failed to leave {channel}\nCause: {str(e)}")
+                            raise e
                 elif task["type"] == "joinVoiceChat":
                     chatID = task["chatID"]
                     inviteLink = task.get("inviteLink",None)
@@ -214,7 +218,7 @@ class OrderUserbotManager:
                         if finalDuration:
                             def leaveVc():
                                 try:asyncio.create_task(app.leave_call(chatID))
-                                except Exception as e: pass
+                                except Exception as e: raise e
                                 print(f"{phone_number} Leaved the call after {finalDuration}s")
                             timer = Timer(float(finalDuration),leaveVc)
                             timer.start()
@@ -228,7 +232,9 @@ class OrderUserbotManager:
                         app = PyTgCalls(client)
                         await app.leave_call(chatID)
                         print(f"{phone_number} had leaved the call.")
-                    except Exception as e: logChannel("Error While Leaving Channel: "+str(e))
+                    except Exception as e: 
+                        logChannel("Error While Leaving Channel: "+str(e))
+                        raise e
                 elif task["type"] == "reactPost":
                     postLink = task["postLink"].replace("/c","")
                     parsed_url = urlparse(postLink)
@@ -247,7 +253,9 @@ class OrderUserbotManager:
                     except ChannelInvalid or ChannelPrivate:
                         await client.join_chat(task["inviteLink"])
                         res = await client.send_reaction(chatID,messageID,emoji=emoji)
-                    except Exception as e: logChannel(f"{phone_number} Failed To React [{emojiString}]: {str(e)}")
+                    except Exception as e: 
+                        logChannel(f"{phone_number} Failed To React [{emojiString}]: {str(e)}")
+                        raise e
                     if res: print(f"Userbot {phone_number} reacted to {task['postLink']} with [{emojiString}]")
                 elif task['type'] == 'sendMessage':
                     textToDeliver = task['text']
@@ -262,7 +270,9 @@ class OrderUserbotManager:
                             if not await joinIfNot(client,chatID,task.get("inviteLink",None)): return
                         await client.vote_poll(chatID,messageID,task["optionIndex"])
                         print(f"Userbot {phone_number} voted on {chatID} with {task['optionIndex']}")
-                    except Exception as e: print(f"{phone_number} Failed To Vote: {str(e)}")
+                    except Exception as e: 
+                        print(f"{phone_number} Failed To Vote: {str(e)}")
+                        raise e
                 elif task['type'] == 'sendPhoto':
                     photoLink = task['photoLink']
                     chatIDToDeliver = task['chatID']
@@ -283,6 +293,7 @@ class OrderUserbotManager:
                         continue
                     except Exception as e:
                         logChannel(f"{phone_number}: Failed To Send Photo: {str(e)}")
+                        raise e
                 elif task["type"] == "viewPosts":
                     postLink = task["postLink"].replace("/c","")
                     parsed_url = urlparse(postLink)
@@ -303,8 +314,15 @@ class OrderUserbotManager:
                     except ChannelInvalid or ChannelPrivate:
                         await joinIfNot(client,chatID,task["inviteLink"])
                         await self.add_task(phone_number,task)
-                    except Exception as e: logChannel(f"{phone_number} Failed To View Post: {str(e)}")
+                    except Exception as e: 
+                        logChannel(f"{phone_number} Failed To View Post: {str(e)}")
+                        raise e
             except UserAlreadyParticipant: pass
+            except ConnectionError or ConnectionAbortedError or RPCError:
+                logChannel(f"Error processing task for {phone_number}: ConnectionError. Restarting..")
+                await self.stop_client(phone_number)
+                await self.start_client(task["session_string"], phone_number)
+                await self.add_task(phone_number,task)
             except Exception as e: logChannel(f"Error processing task for {phone_number}: {e}")
 
             # Reset idle timer after completing a task
