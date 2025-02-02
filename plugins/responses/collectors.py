@@ -136,21 +136,33 @@ async def dynamicSpeed(_,query:CallbackQuery):
     userBots = list(Accounts.find({}))
     await query.message.edit("<b>📋 Executing The Task...</b>")
     if task == "views":
+        count = responseData.get("numberOfViews")
+        userBots = userBots[:int(random.choice(count if isinstance(count,list) else [count]))]
         await UserbotManager.bulk_order(userBots,{
             "type":"viewPosts",
             "postLink": responseData.get("postLink"),
             "restTime":float(seconds),
-            "taskPerformCount": responseData.get("numberOfViews")
+            "taskPerformCount": count
         })
     elif task == "reactions":
+        count = responseData.get("numberOfReactions")
+        userBots = userBots[:int(random.choice(count if isinstance(count,list) else [count]))]
         await UserbotManager.bulk_order(userBots,{
             "type":"reactPost",
             "postLink": responseData.get("postLink"),
             "restTime":float(seconds),
-            "taskPerformCount":responseData.get("numberOfReactions"),
+            "taskPerformCount":count,
             "emoji":responseData.get("emoji")
         })
+        await UserbotManager.bulk_order(userBots,{
+            "type":"viewPosts",
+            "postLink": responseData.get("postLink"),
+            "restTime":float(seconds),
+            "taskPerformCount": count
+        })
     elif task == "leaveChat":
+        count = responseData.get("membersCount")
+        userBots = userBots[:int(random.choice(count if isinstance(count,list) else [count]))]
         channelIDs = []
         for i in responseData.get("chatIDs"):
             if i.startswith('https://t.me/'):  
@@ -161,14 +173,16 @@ async def dynamicSpeed(_,query:CallbackQuery):
             "type":"leave_channel",
             "channels": channelIDs,
             "restTime":float(seconds),
-            "taskPerformCount": responseData.get("membersCount")
+            "taskPerformCount": count
         })
     elif task == "joinChat":
+        count = responseData.get("membersCount")
+        userBots = userBots[:int(random.choice(count if isinstance(count,list) else [count]))]
         await UserbotManager.bulk_order(userBots,{
         "type":"join_channel",
         "channels": responseData.get("chatIDs"),
         "restTime":float(seconds),
-        "taskPerformCount": responseData.get("membersCount")
+        "taskPerformCount": count
         })
     elif task == "notify":
         createResponse(query.from_user.id,"askForNotifyChangeDuration",{**responsesData,"speed":seconds})
@@ -185,30 +199,42 @@ async def dynamicSpeed(_,query:CallbackQuery):
         buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(i.get("text"),f"/notifyChangeDuration {i.get("value")}") for i in numberAllowed],3))
         await query.message.edit("<b>Select the Mute Duration:</b>\n\nPlease choose the duration for muting the channel. You can select from the following options:\n<b>Alternatively</b>, you can choose Unmute to lift the mute and allow notifications from the channel again.",reply_markup=buttons)
     elif task == "report":
+        count = responseData.get("reportsCount")
+        userBots = userBots[:int(random.choice(count if isinstance(count,list) else [count]))]
         await UserbotManager.bulk_order(userBots,{
         "type":"reportChannel",
         "chatID": responseData.get("channelID"),
         "restTime":float(seconds),
-        "taskPerformCount": responseData.get("reportsCount"),
+        "taskPerformCount": count,
         "inviteLink":responseData.get("inviteLink")
         })
     elif task == "joinVoiceChat":
+        count = responseData.get("membersCount")
+        userBots = userBots[:int(random.choice(count if isinstance(count,list) else [count]))]
         await UserbotManager.bulk_order(userBots,{
         "type":"joinVoiceChat",
         "chatID": responseData.get("channelID"),
         "restTime":float(seconds),
-        "taskPerformCount": responseData.get("membersCount"),
+        "taskPerformCount": count,
         "inviteLink":responseData.get("inviteLink")
         })
     elif task == "votePoll":
+        count = responseData.get("numberOfVotes")
+        userBots = userBots[:int(random.choice(count if isinstance(count,list) else [count]))]
         await UserbotManager.bulk_order(userBots,{
         "type":"votePoll",
         "chatID":responseData.get("chatID"),
         "messageID":responseData.get("messageID"),
         "optionIndex":responseData.get("optionIndex"),
         "restTime":float(seconds),
-        "taskPerformCount": responseData.get("numberOfVotes"),
+        "taskPerformCount": count,
         "inviteLink":responseData.get("inviteLink","")
+        })
+        await UserbotManager.bulk_order(userBots,{
+            "type":"viewPosts",
+            "postLink": responseData.get("postLink"),
+            "restTime":float(seconds),
+            "taskPerformCount": count
         })
     elif task == "sendMessage":
         count = responseData.get("messagesCount") 
@@ -292,7 +318,6 @@ async def manuallyWorkQuantityHandler(_:Client,message:Message):
     task = responseData.get("task",None)
     count = message.text.split("-")
     for i in count:
-        print(i)
         if not is_number(i): return await message.reply("<b>Invalid: Please enter a valid integer amount</b>")
     if task == "notify": createResponse(message.from_user.id,"dynamicSpeed",{**responseData,"notifyChangeCount":count})
     elif task == "report": createResponse(message.from_user.id,"dynamicSpeed",{**responseData,"reportsCount":count})
@@ -467,7 +492,8 @@ async def getPostLinkToVote(_,message:Message):
         createResponse(message.from_user.id,"voteOnPollCallback",{
             "chatID":chatID,
             "messageID": msg_id,
-            "inviteLink":responsesData.get("inviteLink","")
+            "inviteLink":responsesData.get("inviteLink",""),
+            "postLink": message.text
         })
     except Exception as e:
         print(e)

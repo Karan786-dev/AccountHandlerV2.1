@@ -88,7 +88,7 @@ async def joinIfNot(client:Client,chatID,inviteLink):
         print(f"Error in joinIfNot",e)
         return False
     
-async def logChannel(string):
+def logChannel(string):
     print(string)
     if not LOGGING_CHANNEL:return 
     try: return requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",{"chat_id": LOGGING_CHANNEL,"text": string})

@@ -5,11 +5,13 @@ from orderAccounts import UserbotManager
 import asyncio
 from urllib.parse import urlparse
 from functions import *
+from ..responses.responseFunctions import getResponse
 
 
 @Client.on_message(filters.text)
 async def onBoosterLink(_:Client,message:Message):
     if not message.text.startswith("https://t.me/c") and not message.text.startswith("https://t.me/"): raise ContinuePropagation()
+    if getResponse(message.from_user.id): raise ContinuePropagation()
     postLink = message.text.replace('/c',"")
     parsed_url = urlparse(postLink)
     path_segments = parsed_url.path.strip("/").split("/")

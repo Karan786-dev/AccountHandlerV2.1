@@ -11,7 +11,7 @@ def deleteResponse(userID):
         responsesData.pop(userID)
 
 
-def getResponse(userID): return responsesData[userID]
+def getResponse(userID): return responsesData[userID] if userID in responsesData else None
 
 
 def checkIfTarget(userID, target):
