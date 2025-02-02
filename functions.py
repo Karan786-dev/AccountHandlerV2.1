@@ -1,6 +1,6 @@
 import time
 import asyncio
-import pytz
+import pytz #type: ignore
 from pyrogram import Client
 from pyrogram.enums import ChatMemberStatus
 import random

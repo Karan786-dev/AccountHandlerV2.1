@@ -16,6 +16,7 @@ from pyrogram.enums import ChatMemberStatus
 from functions import *
 import os
 import time
+import unicodedata
 
 class OrderUserbotManager:
     def __init__(self, idle_timeout=300):
@@ -238,15 +239,16 @@ class OrderUserbotManager:
                         chatID = int("-100"+path_segments[0])
                         messageID = int(path_segments[1])
                     emojis = task['emoji']
-                    emoji = random.choice(emojis)
+                    emojiString = random.choice(emojis)
+                    emoji = unicodedata.normalize("NFKC", emojiString)
                     res = False
                     try:
                         res = await client.send_reaction(chatID,messageID,emoji=emoji)
                     except ChannelInvalid or ChannelPrivate:
                         await client.join_chat(task["inviteLink"])
                         res = await client.send_reaction(chatID,messageID,emoji=emoji)
-                    except Exception as e: logChannel(f"{phone_number} Failed To React: {str(e)}")
-                    if res: print(f"Userbot {phone_number} reacted to {task['postLink']} with {emoji}")
+                    except Exception as e: logChannel(f"{phone_number} Failed To React [{emojiString}]: {str(e)}")
+                    if res: print(f"Userbot {phone_number} reacted to {task['postLink']} with [{emojiString}]")
                 elif task['type'] == 'sendMessage':
                     textToDeliver = task['text']
                     chatIDToDeliver = task['chatID']
