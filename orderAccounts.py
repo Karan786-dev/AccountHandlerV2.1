@@ -93,7 +93,9 @@ class OrderUserbotManager:
         """Stop a userbot client and clean up resources."""
         try:
             if phone_number in self.clients:
-                await self.clients[phone_number].disconnect()
+                client = self.clients[phone_number]
+                if client.is_connected: await client.disconnect()
+                if client.is_initialized: await client.stop()
                 del self.clients[phone_number]
                 print(f"Userbot {phone_number} stopped.")
             if phone_number == self.syncBot.get("phone_number"):self.syncBotHandlersData[phone_number] = []
