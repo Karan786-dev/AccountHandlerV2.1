@@ -249,6 +249,10 @@ class OrderUserbotManager:
                     except ChannelInvalid or ChannelPrivate:
                         await client.join_chat(task["inviteLink"])
                         res = await client.send_reaction(chatID,messageID,emoji=emoji)
+                    except FloodWait as e:
+                        print(f"Flood wait for {phone_number}: Sleeping for {e.x} seconds")
+                        await asyncio.sleep(e.value)
+                        await self.add_task(phone_number, task)
                     except Exception as e: 
                         logChannel(f"{phone_number} Failed To React [{emojiString}]: {str(e)}")
                         raise e
@@ -285,7 +289,7 @@ class OrderUserbotManager:
                         await client.join_chat(chat_username)
                     except FloodWait as e:
                         print(f"Flood wait for {phone_number}: Sleeping for {e.x} seconds")
-                        await asyncio.sleep(e.x) 
+                        await asyncio.sleep(e.value) 
                         continue
                     except Exception as e:
                         logChannel(f"{phone_number}: Failed To Send Photo: {str(e)}")
@@ -315,11 +319,16 @@ class OrderUserbotManager:
                         raise e
             except UserAlreadyParticipant: pass
             except (ConnectionError,ConnectionAbortedError,RPCError,OSError):
-                logChannel(f"Error processing task for {phone_number}: ConnectionError. Restarting..")
+                logChannel(f"Connection Error {phone_number}: {str(e)}. Restarting..")
                 await self.stop_client(phone_number)
                 await self.start_client(task["session_string"], phone_number)
                 await self.add_task(phone_number,task)
-            except Exception as e: logChannel(f"Error processing task for {phone_number}: {e}")
+            except Exception as e: 
+                if "Cannot operate on a closed database." in str(e): 
+                    print(type(e))
+                    await self.start_client(task["session_string"], phone_number)
+                    await self.add_task(phone_number,task)
+                logChannel(f"Error processing task for {phone_number}: {e}\nType: {type(e)}")
 
             # Reset idle timer after completing a task
             if not phone_number == self.syncBot.get("phone_number"): self.reset_idle_timer(phone_number)
