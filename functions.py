@@ -71,13 +71,13 @@ def getProxies():
 async def joinIfNot(client:Client,chatID,inviteLink):
     try:
         channelInfo = await client.get_chat(inviteLink)
-        chatMember = await client.get_chat_member(channelInfo.id, "me")
+        chatMember = await client.get_chat_member(getattr(channelInfo,"id",chatID), "me")
         if not chatMember.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER , ChatMemberStatus.MEMBER]:
             channelData = await client.join_chat(inviteLink)
             print(f"Joined {chatID}")
             return channelData
         return await client.get_chat(chatID)
-    except UserNotParticipant:
+    except (UserNotParticipant , ChannelInvalid):
         channelData = await client.join_chat(inviteLink)
         print(f"Joined {chatID}")
         return channelData
