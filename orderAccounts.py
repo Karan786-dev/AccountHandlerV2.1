@@ -318,7 +318,7 @@ class OrderUserbotManager:
                         logChannel(f"{phone_number} Failed To View Post: {str(e)}")
                         raise e
             except UserAlreadyParticipant: pass
-            except (ConnectionError,ConnectionAbortedError,RPCError,OSError):
+            except (ConnectionError,ConnectionAbortedError,RPCError,OSError) as e:
                 logChannel(f"Connection Error {phone_number}: {str(e)}. Restarting..")
                 await self.stop_client(phone_number)
                 await self.start_client(task["session_string"], phone_number)

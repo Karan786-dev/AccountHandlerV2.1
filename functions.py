@@ -77,7 +77,7 @@ async def joinIfNot(client:Client,chatID,inviteLink):
             print(f"Joined {chatID}")
             return channelData
         return await client.get_chat(chatID)
-    except (UserNotParticipant , ChannelInvalid):
+    except (UserNotParticipant , ChannelInvalid , ChannelPrivate):
         channelData = await client.join_chat(inviteLink)
         print(f"Joined {chatID}")
         return channelData
