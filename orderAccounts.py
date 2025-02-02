@@ -24,9 +24,6 @@ class OrderUserbotManager:
         self.task_queues = {}  # Task queues for each userbot
         self.idle_timers = {}  # Timers to stop inactive clients
         self.idle_timeout = idle_timeout
-        self.proxyResetTimes = {} 
-        self.proxyResetTimeout = 30
-        self.isProxyResetting = []
         self.syncBot = {}
         self.sessionStrings = {}
         self.syncBotHandlersData = {}
@@ -58,7 +55,7 @@ class OrderUserbotManager:
             os.remove(oldSessionFile)
         try:
             self.clients[phone_number] = client
-            await client.connect()
+            await client.start()
             self.sessionStrings[phone_number] = sessionString
             print(f"Userbot {phone_number} started: {(ip+":"+port) if proxyDetail else "Without Proxy"}")
             # Create task queue for the client
@@ -95,7 +92,6 @@ class OrderUserbotManager:
         try:
             if phone_number in self.clients:
                 client = self.clients[phone_number]
-                if client.is_connected: await client.disconnect()
                 if client.is_initialized: await client.stop()
                 del self.clients[phone_number]
                 print(f"Userbot {phone_number} stopped.")
@@ -318,7 +314,7 @@ class OrderUserbotManager:
                         logChannel(f"{phone_number} Failed To View Post: {str(e)}")
                         raise e
             except UserAlreadyParticipant: pass
-            except ConnectionError or ConnectionAbortedError or RPCError:
+            except (ConnectionError,ConnectionAbortedError,RPCError,OSError):
                 logChannel(f"Error processing task for {phone_number}: ConnectionError. Restarting..")
                 await self.stop_client(phone_number)
                 await self.start_client(task["session_string"], phone_number)
