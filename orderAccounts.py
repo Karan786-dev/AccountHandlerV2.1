@@ -250,7 +250,7 @@ class OrderUserbotManager:
                         await client.join_chat(task["inviteLink"])
                         res = await client.send_reaction(chatID,messageID,emoji=emoji)
                     except FloodWait as e:
-                        print(f"Flood wait for {phone_number}: Sleeping for {e.x} seconds")
+                        print(f"Flood wait for {phone_number}: Sleeping for {e.value} seconds")
                         await asyncio.sleep(e.value)
                         await self.add_task(phone_number, task)
                     except Exception as e: 
@@ -288,7 +288,7 @@ class OrderUserbotManager:
                         print(f"User {phone_number} Not Participant In {chatIDToDeliver}")
                         await client.join_chat(chat_username)
                     except FloodWait as e:
-                        print(f"Flood wait for {phone_number}: Sleeping for {e.x} seconds")
+                        print(f"Flood wait for {phone_number}: Sleeping for {e.value} seconds")
                         await asyncio.sleep(e.value) 
                         continue
                     except Exception as e:
