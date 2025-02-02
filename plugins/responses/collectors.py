@@ -540,6 +540,7 @@ async def getPostLinkToReact(_,message):
 async def getEmojiToReact(_,message):
     if not checkIfTarget(message.from_user.id,"emojiToSendReaction"): raise ContinuePropagation()
     responseData = getResponse(message.from_user.id).get("payload")
+    if not message.text: raise ContinuePropagation()
     emojiToReact = message.text.split(",") 
     deleteResponse(message.from_user.id)
     text , keyboard = getAskWorkQuantity(task="reactions")
