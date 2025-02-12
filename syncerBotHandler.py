@@ -4,12 +4,15 @@ from pyrogram.raw.types import UpdateGroupCall , GroupCallDiscarded
 from database import Channels , Accounts
 from orderAccounts import UserbotManager
 import asyncio
+import random
+from functions import logChannel
+
 
 async def messageHandler(_,message:Message):
     channelID = message.chat.id 
     channelData = Channels.find_one({"channelID":int(channelID)})
     if not channelData: return 
-    print(message.text)
+    logChannel(f"<b>Update From Channel: </b><code>{message.chat.title}</code>\nMessage: <code>{message.text}</code>")
     chatUsername = message.chat.username 
     inviteLink = f"@{chatUsername}" if chatUsername else channelData.get("inviteLink")
     messageID = message.id 
@@ -21,7 +24,7 @@ async def messageHandler(_,message:Message):
     if ("view_posts" in tasksData) and channelData.get("isViewEnabled",False):
         viewRestTime = channelData.get("viewRestTime",0)
         viewCount = channelData.get("viewCount",0)
-        userbots = list(Accounts.find({}))
+        userbots = list(Accounts.find({}))[:int(random.choice(viewCount if isinstance(viewCount,list) else [viewCount]))]
         tasksArray.append(UserbotManager.bulk_order(userbots,{
             "type":"viewPosts",
             "postLink": postLink,
@@ -32,7 +35,7 @@ async def messageHandler(_,message:Message):
     if ("reaction_posts" in tasksData) and channelData.get("isReactionsEnabled",False) and len(reactionEmojis):
         reactRestTime = channelData.get('reactionRestTime',0)
         reactionCount = channelData.get('reactionsCount',0) 
-        userbots = list(Accounts.find({}))
+        userbots = list(Accounts.find({}))[:int(random.choice(reactionCount if isinstance(reactionCount,list) else [reactionCount]))]
         tasksArray.append(UserbotManager.bulk_order(userbots,{
             "type":"reactPost",
             "postLink": postLink,
@@ -41,8 +44,21 @@ async def messageHandler(_,message:Message):
             "emoji":reactionEmojis,
             "inviteLink": inviteLink
         }))
-    await asyncio.gather(*tasksArray)
-    
+    semaphore = asyncio.Semaphore(20)
+    async def safe_task(task_coro):
+        async with semaphore:
+            attempt = 0
+            retries = 5
+            while attempt < retries:
+                try:
+                    await task_coro
+                    return
+                except Exception as e:
+                    print(f"Task failed with error on attempt {attempt+1}: {e}")
+                    attempt += 1
+                    await asyncio.sleep(2 ** attempt)
+            print("Task failed after all retries.")
+    for task in tasksArray: asyncio.create_task(safe_task(task))
         
 async def voiceChatHandler(client:Client, update, users, chats):
     if not isinstance(update,UpdateGroupCall): return

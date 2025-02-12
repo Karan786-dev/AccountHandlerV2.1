@@ -9,6 +9,9 @@ from pathlib import Path
 from orderAccounts import UserbotManager
 from database import Accounts
 import shutil
+import uvloop
+
+# uvloop.install()
 
 if Path(SESSION).exists(): shutil.rmtree(SESSION)
 if Path(USERBOT_SESSION).exists(): shutil.rmtree(USERBOT_SESSION)

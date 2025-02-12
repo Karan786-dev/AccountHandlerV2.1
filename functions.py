@@ -1,5 +1,4 @@
-import time
-import asyncio
+import json
 import pytz #type: ignore
 from pyrogram import Client
 from pyrogram.enums import ChatMemberStatus
@@ -91,5 +90,14 @@ async def joinIfNot(client:Client,chatID,inviteLink):
 def logChannel(string):
     print(string)
     if not LOGGING_CHANNEL:return 
-    try: return requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",{"chat_id": LOGGING_CHANNEL,"text": string})
+    try: return requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",{"chat_id": LOGGING_CHANNEL,"text": string,"parse_mode":"HTML"})
     except Exception as e: print(string)
+
+
+import json
+
+def format_json(json_string):
+    try:
+        parsed_json = json.loads(json_string) 
+        return json.dumps(parsed_json, indent=4, ensure_ascii=False)
+    except json.JSONDecodeError: return json_string
