@@ -29,8 +29,8 @@ A powerful Telegram bot built using [Pyrofork](https://github.com/pyrogram/pyrog
 ### Setup
 1. Clone the repository:
    ```sh
-   git clone https://github.com/yourusername/yourrepo.git
-   cd yourrepo
+   git clone https://github.com/Karan786-dev/AccountHandlerV2.1.git
+   cd AccountHandlerV2.1
    ```
 2. Install dependencies:
    ```sh
@@ -57,11 +57,11 @@ A powerful Telegram bot built using [Pyrofork](https://github.com/pyrogram/pyrog
    LOGGING_CHANNEL = ""
    ```
 5. Create Enviroment
-   ```
+   ```sh
    bash createEnv.sh
    ```
 4. Run the bot:
-   ```
+   ```sh
    bash startBot.sh
    ```
 
