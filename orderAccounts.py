@@ -241,13 +241,16 @@ class OrderUserbotManager:
                     res = False
                     try:
                         res = await client.send_reaction(chatID,messageID,emoji=emoji)
-                    except ChannelInvalid or ChannelPrivate:
+                    except (ChannelInvalid,ChannelPrivate,PeerIdInvalid):
+                        logChannel(f"<b>{phone_number}</b>: Need to <b><a href='{task["inviteLink"]}'>Join Channel</a></b> To React. Joining and Trying Again....")
                         await client.join_chat(task["inviteLink"])
-                        res = await client.send_reaction(chatID,messageID,emoji=emoji)
+                        await self.add_task(phone_number, task)
+                        continue
                     except FloodWait as e:
                         print(f"Flood wait for {phone_number}: Sleeping for {e.value} seconds")
                         await asyncio.sleep(e.value)
                         await self.add_task(phone_number, task)
+                        continue
                     except Exception as e: 
                         logChannel(f"{phone_number} Failed To React [{emojiString}]: {str(e)}")
                         raise e
@@ -306,14 +309,21 @@ class OrderUserbotManager:
                             increment=True
                         ))
                         if res: print(f"{phone_number} Viewed: {postLink}")
-                    except ChannelInvalid or ChannelPrivate:
-                        await joinIfNot(client,chatID,task["inviteLink"])
-                        await self.add_task(phone_number,task)
+                    except (ChannelInvalid,ChannelPrivate,PeerIdInvalid):
+                        logChannel(f"<b>{phone_number}</b>: Need to <b><a href='{task["inviteLink"]}'>Join Channel</a></b> To View. Joining and Trying Again....")
+                        await client.join_chat(task["inviteLink"])
+                        await self.add_task(phone_number, task)
+                        continue
                     except Exception as e: 
                         logChannel(f"{phone_number} Failed To View Post: {str(e)}")
                         raise e
             except UserAlreadyParticipant: pass
             except MessageIdInvalid: pass
+            except BotMethodInvalid:
+                logChannel(f"Telegram Considering <b>{phone_number}</b> as Bot. <b>Account Removed</b>")
+                await self.stop_client(phone_number)
+                Accounts.delete_one({"phone_number":str(phone_number)})
+                continue
             except (ConnectionError,ConnectionAbortedError,RPCError,OSError) as e:
                 logChannel(f"Connection Error {phone_number}: {str(e)}. Restarting..")
                 await self.stop_client(phone_number)
