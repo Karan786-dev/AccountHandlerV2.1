@@ -64,7 +64,7 @@ async def onBoosterForward(_:Client,message:Message):
     chatUsername = message.forward_from_chat.username 
     inviteLink = f"@{chatUsername}" if chatUsername else channelData.get("inviteLink")
     messageID = message.forward_from_message_id 
-    postLink = f"https://t.me/c/{str(channelID).replace("-100","") if not chatUsername else chatUsername}/{messageID}"
+    postLink = f"https://t.me/c/{str(channelID).replace("-100","").replace("-","") if not chatUsername else chatUsername}/{messageID}"
     tasksData = channelData.get("services",[])
     if not len(tasksData):  return
     reactionEmojis = channelData.get('reactionsType', [])

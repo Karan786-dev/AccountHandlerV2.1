@@ -1,4 +1,4 @@
-from pyrogram import Client , filters , types
+from pyrogram import Client , filters , types , ContinuePropagation
 from pyrogram.types import Message 
 from pyrogram.raw.types import UpdateGroupCall , GroupCallDiscarded
 from database import Channels , Accounts
@@ -9,6 +9,7 @@ from functions import logChannel
 
 
 async def messageHandler(_,message:Message):
+    if not message.text and not message.sticker and not message.poll and not message.photo: return ContinuePropagation()
     channelID = message.chat.id 
     channelData = Channels.find_one({"channelID":int(channelID)})
     if not channelData: return 
@@ -16,7 +17,7 @@ async def messageHandler(_,message:Message):
     chatUsername = message.chat.username 
     inviteLink = f"@{chatUsername}" if chatUsername else channelData.get("inviteLink")
     messageID = message.id 
-    postLink = f"https://t.me/c/{str(channelID).replace("-100","") if not chatUsername else chatUsername}/{messageID}"
+    postLink = f"https://t.me/c/{str(channelID).replace("-100","").replace("-","") if not chatUsername else chatUsername}/{messageID}"
     tasksData = channelData.get("services",[])
     if not len(tasksData):  return
     reactionEmojis = channelData.get('reactionsType', [])
@@ -61,29 +62,33 @@ async def messageHandler(_,message:Message):
     for task in tasksArray: asyncio.create_task(safe_task(task))
         
 async def voiceChatHandler(client:Client, update, users, chats):
-    if not isinstance(update,UpdateGroupCall): return
-    channelID = int("-100"+str(update.chat_id))  
-    channelData = Channels.find_one({"channelID":int(channelID)})
-    if not channelData: return 
-    if isinstance(update.call,GroupCallDiscarded): return
-    if update.call.participants_count and str(update.call.version) != "1": return
-    chatUsername = channelData.get("username",None)
-    inviteLink = f"@{chatUsername}" if chatUsername else channelData.get("inviteLink")
-    tasksData = channelData.get("services",[])
-    if not len(tasksData):  return
-    if ("voice_chat" in tasksData) and channelData.get("isVoiceEnabled",False):
-        voiceRestTimes = channelData.get("voiceRestTime") 
-        voiceRestTimeArray = voiceRestTimes if isinstance(voiceRestTimes,list) else [voiceRestTimes.split(" ")[0],voiceRestTimes.split(" ")[0]]
-        voiceChatJoin = channelData.get("voiceCount") 
-        duration = channelData.get("voiceDuration")
-        chatID = channelID if not chatUsername else chatUsername
-        userbots = list(Accounts.find({}))
-        await UserbotManager.bulk_order(userbots,{
-            "type": "joinVoiceChat",
-            "chatID": chatID,
-            "restTime": voiceRestTimeArray,
-            "taskPerformCount": int(voiceChatJoin),
-            "inviteLink": inviteLink,
-            "duration":duration
-        })
+    try:
+        if not isinstance(update,UpdateGroupCall): return
+        channelID = update.chat_id
+        channelID = int("-100"+str(channelID))  if not str(channelID).startswith("-") else int(channelID)
+        channelData = Channels.find_one({"channelID":int(channelID)})
+        if not channelData: return 
+        if isinstance(update.call,GroupCallDiscarded): return
+        if update.call.participants_count and str(update.call.version) != "1": return
+        chatUsername = channelData.get("username",None)
+        inviteLink = f"@{chatUsername}" if chatUsername else channelData.get("inviteLink")
+        tasksData = channelData.get("services",[])
+        if not len(tasksData):  return
+        if ("voice_chat" in tasksData) and channelData.get("isVoiceEnabled",False):
+            voiceRestTimes = channelData.get("voiceRestTime") 
+            voiceRestTimeArray = voiceRestTimes if isinstance(voiceRestTimes,list) else [voiceRestTimes.split(" ")[0],voiceRestTimes.split(" ")[0]]
+            voiceChatJoin = channelData.get("voiceCount") 
+            duration = channelData.get("voiceDuration")
+            chatID = channelID if not chatUsername else chatUsername
+            userbots = list(Accounts.find({}))
+            await UserbotManager.bulk_order(userbots,{
+                "type": "joinVoiceChat",
+                "chatID": chatID,
+                "restTime": voiceRestTimeArray,
+                "taskPerformCount": int(voiceChatJoin),
+                "inviteLink": inviteLink,
+                "duration":duration
+            })
+    except Exception as e:
+        print(e)
 

@@ -161,7 +161,7 @@ class OrderUserbotManager:
                 elif task["type"] == "reportChannel":
                     chatID = task["chatID"]
                     try:
-                        if str(chatID).startswith("-100"): await joinIfNot(client,chatID,task.get("inviteLink",None))
+                        if str(chatID).startswith("-"): await joinIfNot(client,chatID,task.get("inviteLink",None))
                         input_channel = await client.resolve_peer(str(chatID))
                         res = await client.invoke(
                             ReportPeer(
@@ -233,7 +233,7 @@ class OrderUserbotManager:
                     chatID = str(path_segments[0])
                     messageID = int(path_segments[1])
                     if is_number(chatID):
-                        chatID = int("-100"+path_segments[0])
+                        chatID = int("-100"+chatID)  if  not chatID.startswith("-") else int(chatID)
                         messageID = int(path_segments[1])
                     emojis = task['emoji']
                     emojiString = random.choice(emojis)
@@ -242,7 +242,7 @@ class OrderUserbotManager:
                     try:
                         res = await client.send_reaction(chatID,messageID,emoji=emoji)
                     except (ChannelInvalid,ChannelPrivate,PeerIdInvalid):
-                        logChannel(f"<b>{phone_number}</b>: Need to <b><a href='{task["inviteLink"]}'>Join Channel</a></b> To React. Joining and Trying Again....")
+                        print(f"<b>{phone_number}</b>: Need to <b><a href='{task["inviteLink"]}'>Join Channel</a></b> To React. Joining and Trying Again....")
                         await client.join_chat(task["inviteLink"])
                         await self.add_task(phone_number, task)
                         continue
@@ -251,7 +251,11 @@ class OrderUserbotManager:
                         await asyncio.sleep(e.value)
                         await self.add_task(phone_number, task)
                         continue
+                    except ReactionInvalid:
+                        logChannel(f"{phone_number}: <b>[{emojiString}] Not Allowed</b> In <code>{chatID}</code>")
+                        continue
                     except Exception as e: 
+
                         logChannel(f"{phone_number} Failed To React [{emojiString}]: {str(e)}")
                         raise e
                     if res: print(f"Userbot {phone_number} reacted to {task['postLink']} with [{emojiString}]")
@@ -264,7 +268,7 @@ class OrderUserbotManager:
                     chatID = "@"+task["chatID"] if not is_number(task["chatID"]) else int(task["chatID"])
                     messageID = int(task["messageID"])
                     try: 
-                        if str(chatID).startswith("-100"): 
+                        if str(chatID).startswith("-"): 
                             if not await joinIfNot(client,chatID,task.get("inviteLink",None)): return
                         await client.vote_poll(chatID,messageID,task["optionIndex"])
                         print(f"Userbot {phone_number} voted on {chatID} with {task['optionIndex']}")
@@ -299,7 +303,7 @@ class OrderUserbotManager:
                     chatID = str(path_segments[0])
                     messageID = int(path_segments[1])
                     if is_number(chatID):
-                        chatID = int("-100"+path_segments[0])
+                        chatID = int("-100"+chatID)  if  not chatID.startswith("-") else int(chatID)
                         messageID = int(path_segments[1])
                     try:
                         channelPeer = await client.resolve_peer(chatID)
@@ -310,7 +314,7 @@ class OrderUserbotManager:
                         ))
                         if res: print(f"{phone_number} Viewed: {postLink}")
                     except (ChannelInvalid,ChannelPrivate,PeerIdInvalid):
-                        logChannel(f"<b>{phone_number}</b>: Need to <b><a href='{task["inviteLink"]}'>Join Channel</a></b> To View. Joining and Trying Again....")
+                        print(f"<b>{phone_number}</b>: Need to <b><a href='{task["inviteLink"]}'>Join Channel</a></b> To View. Joining and Trying Again....")
                         await client.join_chat(task["inviteLink"])
                         await self.add_task(phone_number, task)
                         continue
@@ -325,7 +329,7 @@ class OrderUserbotManager:
                 Accounts.delete_one({"phone_number":str(phone_number)})
                 continue
             except (ConnectionError,ConnectionAbortedError,RPCError,OSError) as e:
-                logChannel(f"Connection Error {phone_number}: {str(e)}. Restarting..")
+                logChannel(f"Connection Error {phone_number}: {str(e)}. \n\nType: {type(e)}\n\n <b>Restarting..</b>")
                 await self.stop_client(phone_number)
                 await self.start_client(task["session_string"], phone_number)
                 await self.add_task(phone_number,task)
