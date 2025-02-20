@@ -7,6 +7,8 @@ from datetime import datetime
 from pyrogram.errors import *
 from config import * 
 import requests
+import re
+from logger import logger
 
 timezone = pytz.timezone("Asia/Kolkata") 
 
@@ -17,13 +19,13 @@ class temp(object):
     CURRENT = 0
     
     
+import re
+
 def is_number(value):
-    if isinstance(value, (int, float)):return True
+    if isinstance(value, (int, float)):
+        return True
     if isinstance(value, str):
-        try:
-            float(value) 
-            return True
-        except ValueError:return False
+        return bool(re.fullmatch(r'[+-]?(\d+(\.\d+)?|\.\d+)', value))
     return False
 
 
@@ -87,17 +89,21 @@ async def joinIfNot(client:Client,chatID,inviteLink):
         print(f"Error in joinIfNot",e)
         return False
     
-def logChannel(string):
-    print(string)
-    if not LOGGING_CHANNEL:return 
-    try: return requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",{"chat_id": LOGGING_CHANNEL,"text": string,"parse_mode":"HTML"})
-    except Exception as e: print(string)
-
+def logChannel(string,isError=False):
+    try: 
+        if LOGGING_CHANNEL: requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",{"chat_id": LOGGING_CHANNEL,"text": string,"parse_mode":"HTML"})
+    except Exception as e: logger.error(f"Error")
+    if isError: logger.error(string)
+    else: logger.debug(string)
 
 import json
 
 def format_json(json_string):
     try:
-        parsed_json = json.loads(json_string) 
-        return json.dumps(parsed_json, indent=4, ensure_ascii=False)
-    except json.JSONDecodeError: return json_string
+        if type(json_string) is not str: json_string = str(json_string)
+        json_string = json_string.replace("'", '"')
+        data = json.loads(json_string) 
+        return "\n".join(f"<b>{key}:</b>  <code>{value}</code>" for key, value in data.items())
+    except json.JSONDecodeError as e:
+      logger.error(e)
+      return json_string

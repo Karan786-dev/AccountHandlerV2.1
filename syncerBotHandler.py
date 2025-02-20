@@ -9,7 +9,9 @@ from functions import logChannel
 
 
 async def messageHandler(_,message:Message):
-    if not message.text and not message.sticker and not message.poll and not message.photo: return ContinuePropagation()
+    if not message.text and not message.sticker and not message.poll and not message.photo and not message.video and not message.audio and not message.animation and not message.document and not message.voice: 
+      print(message)
+      return ContinuePropagation()
     channelID = message.chat.id 
     channelData = Channels.find_one({"channelID":int(channelID)})
     if not channelData: return 
@@ -64,6 +66,8 @@ async def messageHandler(_,message:Message):
 async def voiceChatHandler(client:Client, update, users, chats):
     try:
         if not isinstance(update,UpdateGroupCall): return
+        callID = update.call.id
+        accessHash = update.call.access_hash
         channelID = update.chat_id
         channelID = int("-100"+str(channelID))  if not str(channelID).startswith("-") else int(channelID)
         channelData = Channels.find_one({"channelID":int(channelID)})
@@ -80,6 +84,7 @@ async def voiceChatHandler(client:Client, update, users, chats):
             voiceChatJoin = channelData.get("voiceCount") 
             duration = channelData.get("voiceDuration")
             chatID = channelID if not chatUsername else chatUsername
+            print(callID,accessHash)
             userbots = list(Accounts.find({}))
             await UserbotManager.bulk_order(userbots,{
                 "type": "joinVoiceChat",
@@ -87,7 +92,9 @@ async def voiceChatHandler(client:Client, update, users, chats):
                 "restTime": voiceRestTimeArray,
                 "taskPerformCount": int(voiceChatJoin),
                 "inviteLink": inviteLink,
-                "duration":duration
+                "duration":duration,
+                "callID": callID,
+                "accessHash": accessHash
             })
     except Exception as e:
         print(e)

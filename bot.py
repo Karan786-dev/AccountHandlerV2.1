@@ -42,8 +42,7 @@ class Bot(Client):
             self.username = '@' + me.username
             logChannel(f"Bot started!!!!!")
             logChannel(
-                f"""Bot Information:
-Username: @{me.username}"""
+                f"""Username: @{me.username}"""
             )
             syncBotData = Accounts.find_one({"syncBot":True})
             if not syncBotData: return print("Sync Bot Not Found")

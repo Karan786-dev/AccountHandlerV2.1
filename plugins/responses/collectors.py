@@ -186,7 +186,7 @@ async def dynamicSpeed(_,query:CallbackQuery):
         "taskPerformCount": count
         })
     elif task == "notify":
-        createResponse(query.from_user.id,"askForNotifyChangeDuration",{**responsesData,"speed":seconds})
+        createResponse(query.from_user.id,"askForNotifyChangeDuration",{**responseData,"speed":seconds})
         numberAllowed = [
             {"text": "Unmute", "value": 0},
             {"text": "1 Day", "value": 86400},
@@ -198,7 +198,7 @@ async def dynamicSpeed(_,query:CallbackQuery):
             {"text": "Forever", "value": 2147483647},
         ]
         buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(i.get("text"),f"/notifyChangeDuration {i.get("value")}") for i in numberAllowed],3))
-        await query.message.edit("<b>Select the Mute Duration:</b>\n\nPlease choose the duration for muting the channel. You can select from the following options:\n<b>Alternatively</b>, you can choose Unmute to lift the mute and allow notifications from the channel again.",reply_markup=buttons)
+        return await query.message.edit("<b>Select the Mute Duration:</b>\n\nPlease choose the duration for muting the channel. You can select from the following options:\n<b>Alternatively</b>, you can choose Unmute to lift the mute and allow notifications from the channel again.",reply_markup=buttons)
     elif task == "report":
         count = responseData.get("reportsCount")
         userBots = userBots[:int(random.choice(count if isinstance(count,list) else [count]))]
@@ -358,6 +358,7 @@ async def changeNotifyChannelGetIDHandler(_:Client,message:Message):
 async def notifyChangeDurationHandler(_:Client,query:CallbackQuery):
     if not checkIfTarget(query.from_user.id,"askForNotifyChangeDuration"): raise ContinuePropagation()
     duration = query.data.split(" ")[1]
+    rawResponseData = getResponse(query.from_user.id)
     responseData = getResponse(query.from_user.id).get("payload")
     deleteResponse(query.from_user.id)
     userBots = shuffleArray(list(Accounts.find()))
