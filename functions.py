@@ -9,6 +9,8 @@ from config import *
 import requests
 import re
 from logger import logger
+import string
+import json
 
 timezone = pytz.timezone("Asia/Kolkata") 
 
@@ -17,9 +19,7 @@ class temp(object):
     ME = None
     CANCEL = False
     CURRENT = 0
-    
-    
-import re
+
 
 def is_number(value):
     if isinstance(value, (int, float)):
@@ -96,14 +96,20 @@ def logChannel(string,isError=False):
     if isError: logger.error(string)
     else: logger.debug(string)
 
-import json
-
 def format_json(json_string):
     try:
-        if type(json_string) is not str: json_string = str(json_string)
+        if not isinstance(json_string, str):
+            json_string = json.dumps(json_string) 
         json_string = json_string.replace("'", '"')
-        data = json.loads(json_string) 
+        data = json.loads(json_string)
+        for key, value in data.items():
+            if isinstance(value, bool): data[key] = str(value) 
         return "\n".join(f"<b>{key}:</b>  <code>{value}</code>" for key, value in data.items())
     except json.JSONDecodeError as e:
-      logger.error(e)
-      return json_string
+        logger.error(f"JSON Decode Error: {e}")
+        return json_string 
+
+
+def generateRandomString(length=5):
+    characters = string.ascii_letters
+    return ''.join(random.choice(characters) for _ in range(length))

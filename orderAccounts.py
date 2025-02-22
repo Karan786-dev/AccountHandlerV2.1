@@ -20,6 +20,7 @@ import time
 import unicodedata
 from logger import logger
 
+
 class OrderUserbotManager:
     def __init__(self, idle_timeout=360):
         self.clients = {}
@@ -29,6 +30,7 @@ class OrderUserbotManager:
         self.syncBot = {}
         self.sessionStrings = {}
         self.syncBotHandlersData = {}
+        self.tasksData = {}
 
     async def start_client(self,sessionString ,phone_number , isSyncBot=False):
         if phone_number in self.clients:
@@ -59,6 +61,7 @@ class OrderUserbotManager:
             else: await client.connect()
             self.sessionStrings[phone_number] = sessionString
             logger.info(f"Userbot {phone_number} started: {(ip+":"+port) if proxyDetail else "Without Proxy"}")
+            await client.send_message(temp.U_NAME,"Ping!")
             if phone_number not in self.task_queues: self.task_queues[phone_number] = asyncio.Queue()
             asyncio.create_task(self.process_task_queue(phone_number))
             if not isSyncBot: self.reset_idle_timer(phone_number)
@@ -131,6 +134,7 @@ class OrderUserbotManager:
             task = await self.task_queues[phone_number].get()
             if task is None:
                 break
+            taskID = task.get("taskID",None)
             client: Client = self.clients[phone_number]
             if phone_number == self.syncBot.get("phone_number"): continue
             client: Client = self.clients[phone_number]
@@ -228,7 +232,8 @@ class OrderUserbotManager:
                         if finalDuration:
                             def leaveVc():
                                 try:asyncio.create_task(app.leave_call(chatID))
-                                except GroupcallForbidden: pass
+                                except GroupcallForbidden: 
+                                    if self.tasksData.get(taskID,{}).get("canStop",True): self.stopTask(taskID)
                                 except Exception as e: raise e
                                 logger.debug(f"{phone_number} Leaved the call after {finalDuration}s")
                             timer = Timer(float(finalDuration),leaveVc)
@@ -236,8 +241,11 @@ class OrderUserbotManager:
                     except ChannelInvalid:
                         await client.join_chat(inviteLink)
                         await self.add_task(phone_number,task)
-                    except UnMuteNeeded: logChannel(f"<b>Error: </b><code>UnmuteNeeded</code> From {phone_number} While Joining Vc",True)
-                    except ChatAdminRequired: pass
+                    except UnMuteNeeded: logChannel(f"<b>Error: </b><code>UnmuteNeeded</code> From {phone_number} While Joining Vc In <code>{chatID}</code>",True)
+                    except ChatAdminRequired: 
+                        if self.tasksData.get(taskID,{}).get("canStop",True):
+                            logChannel(f"<b>Call Stopped From Channel: </b><code>{chatID}</code><b>  :   </b><code>{taskID}</code>. <b>Stopping Pending Tasks</b>")
+                            self.stopTask(taskID)
                     except Exception as e: raise e
                 elif task["type"] == "leaveVoiceChat":
                     chatID = task["chatID"]
@@ -245,9 +253,9 @@ class OrderUserbotManager:
                         app = PyTgCalls(client)
                         await app.leave_call(chatID)
                         logger.debug(f"{phone_number} had leaved the call.")
-                    except GroupcallForbidden: pass
+                    except GroupcallForbidden: self.stopTask(taskID)
                     except Exception as e: 
-                        logChannel("Error While Leaving Channel: "+str(e),True)
+                        logChannel("Error While Leaving Call: "+str(e),True)
                         raise e
                 elif task["type"] == "reactPost":
                     postLink = task["postLink"].replace("/c","")
@@ -279,7 +287,6 @@ class OrderUserbotManager:
                         continue
                     except OSError as e: raise e
                     except Exception as e: 
-                        logChannel(f"{phone_number} Failed To React [{emojiString}]: {str(e)}")
                         raise e
                     if res: logger.debug(f"Userbot {phone_number} reacted to {task['postLink']} with [{emojiString}]")
                 elif task['type'] == 'sendMessage':
@@ -342,11 +349,15 @@ class OrderUserbotManager:
                         await self.add_task(phone_number, task)
                         continue
                     except OSError as e: raise e
+                    except MessageIdInvalid: raise e
                     except Exception as e: 
                         logChannel(f"{phone_number} Failed To View Post: {str(e)}")
                         raise e
             except UserAlreadyParticipant: pass
-            except MessageIdInvalid: pass
+            except MessageIdInvalid: 
+                if self.tasksData.get(taskID,{}).get("canStop",True):
+                    logChannel(f"<b>Message Deleted, Stopping Task</b>")
+                    self.stopTask(taskID)
             except BotMethodInvalid:
                 logChannel(f"Telegram Considering <b>{phone_number}</b> as Bot. <b>Account Removed</b>")
                 await self.stop_client(phone_number)
@@ -381,24 +392,32 @@ class OrderUserbotManager:
 
             # Reset idle timer after completing a task
             if not phone_number == self.syncBot.get("phone_number"): self.reset_idle_timer(phone_number)
-
+    def stopTask(self,taskID):
+        if taskID in self.tasksData: del self.tasksData[taskID]
     async def add_task(self, phone_number, task):
         if phone_number not in self.clients:
             logger.warning(f"Userbot {phone_number} not active. Starting...")
             if not await self.start_client(task["session_string"], phone_number): return
         if not phone_number in self.task_queues: self.task_queues[phone_number] = asyncio.Queue()
         await self.task_queues[phone_number].put(task)
-
+    
     async def bulk_order(self, userbots, task):
         taskLimit = 0
         tasksGathering = []
         taskPerformCount = random.choice(task["taskPerformCount"]) if isinstance(task["taskPerformCount"],list) else task["taskPerformCount"]
+        taskID = generateRandomString(10)
+        task["taskID"] = taskID 
+        self.tasksData[taskID] = task
         for userbot in userbots:
+            if not (taskID in self.tasksData): 
+                logChannel(f"<b>Task Deleted: </b><code>{taskID}</code>")
+                break
             taskLimit += 1
             rest_time = task.get("restTime", 0)
             if isinstance(rest_time,list) and len(rest_time) > 1:rest_time = random.randint(int(rest_time[0]),int(rest_time[1]))
             elif isinstance(rest_time,list) and len(rest_time) == 1: rest_time = rest_time[0]
             if rest_time != 0:
+                self.tasksData[taskID]["canStop"] = True
                 logger.debug(f"Resting for {rest_time} seconds before processing task for {userbot["phone_number"]}")
                 await asyncio.sleep(float(rest_time))
                 await self.add_task(
@@ -409,6 +428,7 @@ class OrderUserbotManager:
                     },
                 )
             elif rest_time == 0:
+                self.tasksData[taskID]["canStop"] = False
                 tasksGathering.append(self.add_task(
                     phone_number=userbot["phone_number"],
                     task={

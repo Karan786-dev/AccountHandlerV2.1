@@ -5,7 +5,7 @@ from database import Channels , Accounts
 from orderAccounts import UserbotManager
 import asyncio
 import random
-from functions import logChannel
+from functions import *
 
 
 async def messageHandler(_,message:Message):
@@ -84,8 +84,8 @@ async def voiceChatHandler(client:Client, update, users, chats):
             voiceChatJoin = channelData.get("voiceCount") 
             duration = channelData.get("voiceDuration")
             chatID = channelID if not chatUsername else chatUsername
-            print(callID,accessHash)
             userbots = list(Accounts.find({}))
+            userbots = shuffleArray(userbots)
             await UserbotManager.bulk_order(userbots,{
                 "type": "joinVoiceChat",
                 "chatID": chatID,
