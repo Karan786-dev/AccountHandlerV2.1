@@ -52,6 +52,7 @@ async def getUserIDToGrantAccess(_,message):
 @Client.on_message(filters.private)
 async def manuallyChangeVoiceDuration(_,message:Message):
     if not checkIfTarget(message.from_user.id,"manuallyChangeVoiceDuration"): raise ContinuePropagation()
+    if not is_number(message.text): return await message.reply("</b>🚫 Invalid Valid:</b> Make Sure To Enter Valid Integer")
     durationCountArray = message.text.split("-")
     responsesData = getResponse(message.from_user.id).get("payload")
     channelID = responsesData.get("channelID")
@@ -64,6 +65,7 @@ async def manuallyChangeVoiceDuration(_,message:Message):
 async def manuallyChangeAutoServiceDelay(_,message:Message):
     if not checkIfTarget(message.from_user.id,"manuallyChangeAutoServiceDelay"): raise ContinuePropagation()
     delayCountArray = message.text.split("-")
+    if not is_number(delayCountArray[0]) or (len(delayCountArray) == 2 and not is_number(delayCountArray[1])): return await message.reply("</b>🚫 Invalid Valid:</b> Make Sure To Enter Valid Integer")
     responsesData = getResponse(message.from_user.id).get("payload")
     channelID = responsesData.get("channelID")
     task = responsesData.get("task")
@@ -79,6 +81,7 @@ async def manuallyChangeAutoServiceDelay(_,message:Message):
 async def manuallyChangeAutoServiceCount(_,message:Message):
     if not checkIfTarget(message.from_user.id,"manuallyChangeAutoServiceCount"): raise ContinuePropagation()
     delayCount = message.text
+    if not is_number(delayCount): return await message.reply("</b>🚫 Invalid Valid:</b> Make Sure To Enter Valid Integer")
     responsesData = getResponse(message.from_user.id).get("payload")
     channelID = responsesData.get("channelID")
     task = responsesData.get("task")
@@ -464,9 +467,9 @@ async def getMessageDeliverIDWithPhotoHandler(_,message):
 @Client.on_message(filters.private)
 async def getPostLinkToVote(_,message:Message):
     if not checkIfTarget(message.from_user.id,"postLinkToVote"): raise ContinuePropagation()
-    postLink = str(message.text)
+    postLink = str(message.text).replace("/c","")
     responsesData = getResponse(message.from_user.id).get("payload",{})
-    match = re.match(r"https://t.me/c/(?P<chat>[\w_]+)/(?P<msg_id>\d+)", postLink)
+    match = re.match(r"https://t.me/(?P<chat>[\w_]+)/(?P<msg_id>\d+)", postLink)
     deleteResponse(message.from_user.id)
     if not match: return await message.reply("<b>⚠️ Invalid input:  Please enter a valid url</b>")
     try:
@@ -533,7 +536,6 @@ async def getPostLinkToReact(_,message):
     if not checkIfTarget(message.from_user.id,"postLinkTosendReaction"): raise ContinuePropagation()
     postLink = str(message.text).replace("/c","")
     if not postLink.startswith('https://'): return await message.reply("<b>⚠️ Invalid input:  Please enter a valid url</b>")
-    # if postLink.startswith('https://t.me/c'): return await message.reply("<b>⚠️ Invalid input:  Please enter a public channel url</b>")
     deleteResponse(message.from_user.id)
     await message.reply("<b>👀 Enter Emoji to React:</b>")
     createResponse(message.from_user.id,"emojiToSendReaction",{"postLink":postLink})

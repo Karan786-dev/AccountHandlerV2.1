@@ -8,6 +8,7 @@ from datetime import datetime
 logging.getLogger("pymongo").setLevel(logging.ERROR)
 logging.getLogger("pyrogram").setLevel(logging.ERROR)
 logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+logging.getLogger("pytgcalls").setLevel(logging.ERROR)
 logging.getLogger('asyncio').setLevel(logging.WARNING)
 
 logger = logging.getLogger()

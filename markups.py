@@ -104,7 +104,7 @@ async def manageChannelServices(channelID):
         f"   ├─ <b>Status:</b> {'✅ Enabled' if channelData.get('isReactionsEnabled', False) else '❎ Disabled'}\n"
         f"   ├─ <b>Delay:</b> {channelData.get('reactionRestTime', 0)} sec\n"
         f"   ├─ <b>Reactions per Post:</b> {channelData.get('reactionsCount', 0)}\n"
-        f"   └─ <b>Emojis:</b> {', '.join(channelData.get('reactionsType', [])) or 'None'}\n\n"
+        f"   └─ <b>Emojis:</b> {' '.join(channelData.get('reactionsType', [])) or 'None'}\n\n"
         "🎙 <b>Auto Voice Join:</b>\n"
         f"   ├─ <b>Status:</b> {'✅ Enabled' if channelData.get('isVoiceEnabled', False) else '❎ Disabled'}\n"
         f"   ├─ <b>Delay:</b> {channelData.get('voiceRestTime', 0)} sec\n"

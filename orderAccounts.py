@@ -3,6 +3,7 @@ from pytgcalls import filters as callFilters
 from config import USERBOT_SESSION
 import asyncio 
 from pytgcalls import PyTgCalls 
+from pytgcalls.exceptions import *
 from threading import Timer
 from urllib.parse import urlparse
 import random
@@ -227,6 +228,7 @@ class OrderUserbotManager:
                         if finalDuration:
                             def leaveVc():
                                 try:asyncio.create_task(app.leave_call(chatID))
+                                except GroupcallForbidden: pass
                                 except Exception as e: raise e
                                 logger.debug(f"{phone_number} Leaved the call after {finalDuration}s")
                             timer = Timer(float(finalDuration),leaveVc)
@@ -234,6 +236,8 @@ class OrderUserbotManager:
                     except ChannelInvalid:
                         await client.join_chat(inviteLink)
                         await self.add_task(phone_number,task)
+                    except UnMuteNeeded: logChannel(f"<b>Error: </b><code>UnmuteNeeded</code> From {phone_number} While Joining Vc",True)
+                    except ChatAdminRequired: pass
                     except Exception as e: raise e
                 elif task["type"] == "leaveVoiceChat":
                     chatID = task["chatID"]
@@ -241,6 +245,7 @@ class OrderUserbotManager:
                         app = PyTgCalls(client)
                         await app.leave_call(chatID)
                         logger.debug(f"{phone_number} had leaved the call.")
+                    except GroupcallForbidden: pass
                     except Exception as e: 
                         logChannel("Error While Leaving Channel: "+str(e),True)
                         raise e
