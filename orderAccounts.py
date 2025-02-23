@@ -44,13 +44,18 @@ class OrderUserbotManager:
         port = None
         if proxyDetail:
             ip , port , username , password = proxyDetail.split(":")
-            proxy= {
-                "hostname": ip,
-                "port":int(port),
-                "username": username,
-                "password": password,
-                "scheme": "socks5"
-            }
+            isProxyWorking = checkProxy(ip,port,username,password)
+            if isProxyWorking:
+                proxy= {
+                    "hostname": ip,
+                    "port":int(port),
+                    "username": username,
+                    "password": password,
+                    "scheme": "socks5"
+                }
+            else:
+                logChannel(f"<b>{phone_number}:</b> Failed To Connect To Proxy <code>{ip}</code>:<code>{port}</code>\nStarting Without Using Proxy")
+
         client = Client(f"/{phone_number}",session_string=sessionString,phone_number=phone_number,proxy=proxy)
         oldSessionFile = USERBOT_SESSION+f"/{phone_number}"+'.session-journal'
         if os.path.exists(oldSessionFile):
@@ -61,7 +66,7 @@ class OrderUserbotManager:
             else: await client.connect()
             self.sessionStrings[phone_number] = sessionString
             logger.info(f"Userbot {phone_number} started: {(ip+":"+port) if proxyDetail else "Without Proxy"}")
-            await client.send_message(temp.U_NAME,"Ping!")
+            await client.send_message("me","Ping!")
             if phone_number not in self.task_queues: self.task_queues[phone_number] = asyncio.Queue()
             asyncio.create_task(self.process_task_queue(phone_number))
             if not isSyncBot: self.reset_idle_timer(phone_number)

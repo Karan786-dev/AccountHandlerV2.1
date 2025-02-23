@@ -67,7 +67,23 @@ def getProxies():
                 })
     return proxies
 
-
+def checkProxy(ip,port,username,password):
+    proxy = f"http://{username}:{password}@{ip}:{port}"
+    proxies = {
+        "http": proxy,
+        "https": proxy
+    }
+    try:
+        response = requests.get("https://httpbin.org/ip", proxies=proxies, timeout=5)
+        if response.status_code == 200:
+            print("Proxy is working:", response.json())
+            return True
+        else:
+            print("Proxy responded with status:", response.status_code)
+            return False
+    except requests.exceptions.RequestException as e:
+        print("Proxy failed:", e)
+        return False
 
 async def joinIfNot(client:Client,chatID,inviteLink):
     try:
@@ -91,7 +107,8 @@ async def joinIfNot(client:Client,chatID,inviteLink):
     
 def logChannel(string,isError=False):
     try: 
-        if LOGGING_CHANNEL: requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",{"chat_id": LOGGING_CHANNEL,"text": string,"parse_mode":"HTML"})
+        if LOGGING_CHANNEL: 
+            request = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",{"chat_id": LOGGING_CHANNEL,"text": string,"parse_mode":"HTML"})
     except Exception as e: logger.error(f"Error")
     if isError: logger.error(string)
     else: logger.debug(string)
