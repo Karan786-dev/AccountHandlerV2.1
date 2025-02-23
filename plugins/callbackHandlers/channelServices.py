@@ -4,6 +4,7 @@ from functions import *
 from markups import *
 from database import Channels
 from ..responses.responseFunctions import *
+from config import cancelKeyboard
 
 
 @Client.on_callback_query(filters.regex(r'^/channelServices'))
@@ -15,12 +16,10 @@ async def manageChannelServicesHandler(_,query:CallbackQuery):
 
 @Client.on_callback_query(filters.regex(r'^/changeVoiceDuration'))
 async def changeVoiceDurationHandler(_:Client,query:CallbackQuery):
-    print(query.data)
     channelID = int(query.data.split(maxsplit=1)[1])
     numberAllowed = [1,5,10,20,30,40,50,100,300,"Manual"]
     buttons = InlineKeyboardMarkup(paginateArray([InlineKeyboardButton(str(i),f"/VoiceConfirmDuration {i} {channelID}") for i in numberAllowed],3))
     await query.message.edit("<b>👀 Select The Duration of Voice Chat:</b>",reply_markup=buttons)
-    print(buttons)
     
 @Client.on_callback_query(filters.regex(r'^/VoiceConfirmDuration'))
 async def changeVoiceDurationConfirm(_:Client,query:CallbackQuery):
@@ -28,7 +27,8 @@ async def changeVoiceDurationConfirm(_:Client,query:CallbackQuery):
     count = param[0]
     channelID = int(param[1])
     if count == 'Manual': 
-        await query.message.edit("<b>Please enter the duration of voice chat in seconds</b>\n\n<b>Random</b>: To Randomize the duration enter minimum and maximum delay like 1-10")
+        await query.message.delete()
+        await query.message.reply("<b>Please enter the duration of voice chat in seconds</b>\n\n<b>Random</b>: To Randomize the duration enter minimum and maximum delay like 1-10",reply_markup=cancelKeyboard)
         return createResponse(query.from_user.id,"manuallyChangeVoiceDuration",{"channelID":channelID})
     Channels.update_one({"channelID":channelID},{"$set":{"voiceDuration":[int(count)]}})
     text , keyboard = await manageChannelServices(channelID)
@@ -95,7 +95,8 @@ async def changeVoiceCountHandler(_:Client,query:CallbackQuery):
     count = param[0]
     channelID = int(param[1])
     if count == 'Manual': 
-        await query.message.reply("<b>Please enter count of work</b>")
+        await query.message.delete()
+        await query.message.reply("<b>Please enter count of work</b>",reply_markup=cancelKeyboard)
         return createResponse(query.from_user.id,"manuallyChangeAutoServiceCount",{"task":"voice","channelID":channelID})
     Channels.update_one({"channelID":channelID},{"$set":{"voiceCount":int(count)}})
     text , keyboard = await manageChannelServices(channelID)
@@ -107,7 +108,8 @@ async def changeViewsCount(_,query:CallbackQuery):
     count = param[0]
     channelID = int(param[1])
     if count == 'Manual': 
-        await query.message.edit("<b>Please enter count of work</b>")
+        await query.message.delete()
+        await query.message.reply("<b>Please enter count of work</b>",reply_markup=cancelKeyboard)
         return createResponse(query.from_user.id,"manuallyChangeAutoServiceCount",{"task":"views","channelID":channelID})
     Channels.update_one({"channelID":channelID},{"$set":{"viewCount":int(count)}})
     text , keyboard = await manageChannelServices(channelID)
@@ -119,7 +121,8 @@ async def changeReactionCount(_,query:CallbackQuery):
     count = param[0]
     channelID = int(param[1])
     if count == 'Manual': 
-        await query.message.reply("<b>Please enter count of work</b>")
+        await query.message.delete()
+        await query.message.reply("<b>Please enter count of work</b>",reply_markup=cancelKeyboard)
         return createResponse(query.from_user.id,"manuallyChangeAutoServiceCount",{"task":"reactions","channelID":channelID})
     Channels.update_one({"channelID":channelID},{"$set":{"reactionsCount":int(count)}})
     text , keyboard = await manageChannelServices(channelID)
@@ -150,7 +153,8 @@ async def changeVoiceDelay(_:Client,query:CallbackQuery):
     delay = param[0]
     channelID = int(param[1])
     if delay == 'Manual': 
-        await query.message.edit("<b>Please type delay between work</b>\n\n<b>Random</b>: To Randomize the delay enter minimum and maximum delay like 1-10")
+        await query.message.delete()
+        await query.message.reply("<b>Please type delay between work</b>\n\n<b>Random</b>: To Randomize the delay enter minimum and maximum delay like 1-10",reply_markup=cancelKeyboard)
         return createResponse(query.from_user.id,"manuallyChangeAutoServiceDelay",{"task":"voice","channelID":channelID})
     delay = int(delay)
     Channels.update_one({"channelID":channelID},{"$set":{"voiceRestTime":[delay]}})
@@ -163,7 +167,8 @@ async def changeViewsDelay(_,query:CallbackQuery):
     delay = param[0]
     channelID = int(param[1])
     if delay == 'Manual': 
-        await query.message.reply("<b>Please type delay between work</b>\n\n<b>Random</b>: To Randomize the delay enter minimum and maximum delay like 1-10")
+        await query.message.delete()
+        await query.message.reply("<b>Please type delay between work</b>\n\n<b>Random</b>: To Randomize the delay enter minimum and maximum delay like 1-10",reply_markup=cancelKeyboard)
         return createResponse(query.from_user.id,"manuallyChangeAutoServiceDelay",{"task":"views","channelID":channelID})
     delay = int(delay)
     Channels.update_one({"channelID":channelID},{"$set":{"viewRestTime":[delay]}})
@@ -176,7 +181,8 @@ async def changeReactionsDelay(_,query:CallbackQuery):
     delay = param[0]
     channelID = int(param[1])
     if delay == 'Manual': 
-        await query.message.reply("<b>Please type delay between work</b>\n\n<b>Random</b>: To Randomize the delay enter minimum and maximum delay like 1-10")
+        await query.message.delete()
+        await query.message.reply("<b>Please type delay between work</b>\n\n<b>Random</b>: To Randomize the delay enter minimum and maximum delay like 1-10",reply_markup=cancelKeyboard)
         return createResponse(query.from_user.id,"manuallyChangeAutoServiceDelay",{"task":"reactions","channelID":channelID})
     delay = int(param[0])
     Channels.update_one({"channelID":channelID},{"$set":{"reactionRestTime":delay}})

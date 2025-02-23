@@ -1,5 +1,5 @@
 from pyrogram import Client , filters , ContinuePropagation
-from pyrogram.types import Message , InlineKeyboardMarkup , InlineKeyboardButton , CallbackQuery  , Chat
+from pyrogram.types import Message , InlineKeyboardMarkup , InlineKeyboardButton , CallbackQuery  , Chat , ReplyKeyboardRemove
 from .responseFunctions import *
 from config import *
 from database import Accounts , Channels , Users
@@ -10,6 +10,15 @@ from orderAccounts import UserbotManager
 from pyrogram.errors import *
 import re 
 import asyncio
+
+#Cancel Button 
+@Client.on_message(filters.private)
+async def backButton(_, msg):
+    if msg.text != cancelButtonText: raise ContinuePropagation
+    deleteResponse(msg.from_user.id)
+    await msg.reply("You'r back !!!", reply_markup=ReplyKeyboardRemove())
+    text, keyboard = mainMenu(msg.from_user)
+    await msg.reply(text, reply_markup=keyboard)
 
 
 #Function to broadcast
