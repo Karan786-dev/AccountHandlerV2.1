@@ -85,6 +85,7 @@ def checkProxy(ip,port,username,password):
 
 async def joinIfNot(client: Client, chatID, inviteLink):
     try:
+        if not inviteLink: return False
         channelInfo = await client.get_chat(inviteLink)
         channel_id = getattr(channelInfo, "id", None)
 

@@ -47,7 +47,7 @@ async def messageHandler(_,message:Message):
             "emoji":reactionEmojis,
             "inviteLink": inviteLink
         }))
-    semaphore = asyncio.Semaphore(20)
+    semaphore = asyncio.Semaphore(50)
     async def safe_task(task_coro):
         async with semaphore:
             attempt = 0

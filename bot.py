@@ -51,19 +51,20 @@ class Bot(Client):
 
     async def stop(self, *args):
         try:
-            logger.debug(">> Cancelling tasks now")
-            for task in asyncio.all_tasks():
-                task.cancel()
-
-            logger.debug(">> Done cancelling tasks")
-            logger.debug('>> Shutting down main bot')
+            pendingTask = asyncio.all_tasks()
+            if len(pendingTask):
+                logger.warning(f">> Cancelling tasks now: {len(pendingTask)} Tasks")
+                for task in pendingTask:
+                    task.cancel()
+                logger.warning(">> Done cancelling tasks")
+            logger.warning('>> Shutting down main bot')
             await super().stop()
-            sys.exit()
         except CancelledError: pass
+        sys.exit()
 
 try:
     app = Bot()
     app.run()
     idle()
     app.stop()
-except KeyboardInterrupt: logger.debug("Ctrl+C Pressed. Shutting Down.....")
+except KeyboardInterrupt: logger.warning("Ctrl+C Pressed. Shutting Down.....")

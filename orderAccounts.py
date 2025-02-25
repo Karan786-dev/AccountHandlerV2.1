@@ -294,7 +294,7 @@ class OrderUserbotManager:
                     try:
                         res = await client.send_reaction(chatID,messageID,emoji=emoji)
                     except (ChannelInvalid,ChannelPrivate,PeerIdInvalid) as e:
-                        logger.warning(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>Join Channel</a></b> To React.\nError: <code>{e}</code>\n\n Joining and Trying Again....")
+                        logChannel(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>Join Channel</a></b> To React.\nError: <code>{e}</code>\n\n Joining and Trying Again....")
                         await joinIfNot(client,chatID,task.get("inviteLink",None))
                         await self.add_task(phone_number, task)
                         continue
@@ -364,7 +364,7 @@ class OrderUserbotManager:
                         ))
                         if res: logger.debug(f"{phone_number} Viewed: {postLink}")
                     except (ChannelInvalid,ChannelPrivate,PeerIdInvalid) as e:
-                        logger.warning(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>{chatID}</a></b> To View.\nError: <code>{e}</code>\n\n Joining and Trying Again....")
+                        logChannel(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>{chatID}</a></b> To View.\nError: <code>{e}</code>\n\n Joining and Trying Again....")
                         await joinIfNot(client,chatID,task.get("inviteLink",None))
                         await self.add_task(phone_number, task)
                         continue
