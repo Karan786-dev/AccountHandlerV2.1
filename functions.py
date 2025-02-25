@@ -75,9 +75,7 @@ def checkProxy(ip,port,username,password):
     }
     try:
         response = requests.get("https://httpbin.org/ip", proxies=proxies, timeout=5)
-        if response.status_code == 200:
-            print("Proxy is working:", response.json())
-            return True
+        if response.status_code == 200: return True
         else:
             print("Proxy responded with status:", response.status_code)
             return False
@@ -85,31 +83,49 @@ def checkProxy(ip,port,username,password):
         print("Proxy failed:", e)
         return False
 
-async def joinIfNot(client:Client,chatID,inviteLink):
+async def joinIfNot(client: Client, chatID, inviteLink):
     try:
         channelInfo = await client.get_chat(inviteLink)
-        chatMember = await client.get_chat_member(getattr(channelInfo,"id",chatID), "me")
-        if not chatMember.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER , ChatMemberStatus.MEMBER]:
+        channel_id = getattr(channelInfo, "id", None)
+
+        if channel_id is None:
+            print(f"Error: Could not retrieve channel ID for {inviteLink}")
+            return False
+
+        chatMember = await client.get_chat_member(channel_id, "me")
+        if chatMember.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER, ChatMemberStatus.MEMBER]:
             channelData = await client.join_chat(inviteLink)
             print(f"Joined {chatID}")
             return channelData
+
         return await client.get_chat(chatID)
-    except (UserNotParticipant , ChannelInvalid , ChannelPrivate):
+
+    except (UserNotParticipant, ChannelInvalid, ChannelPrivate):
         channelData = await client.join_chat(inviteLink)
         print(f"Joined {chatID}")
         return channelData
+
     except BotMethodInvalid:
         userData = await client.get_me()
         print(f"Failed To Join Because of bot Account: {userData.username}")
+
     except Exception as e:
-        print(f"Error in joinIfNot",e)
+        print(f"Error in joinIfNot: {e}")
         return False
+
     
-def logChannel(string,isError=False):
+def logChannel(string,isError=False,keyboard=None):
     try: 
         if LOGGING_CHANNEL: 
-            request = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",{"chat_id": LOGGING_CHANNEL,"text": string,"parse_mode":"HTML"})
-    except Exception as e: logger.error(f"Error")
+            request = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                                    {"chat_id": LOGGING_CHANNEL,
+                                     "text": string,
+                                     "parse_mode":"HTML",
+                                     "reply_markup":json.dumps(keyboard) if keyboard else keyboard
+                                    })
+            data = request.json()
+            if not data.get("ok"): logger.error(f"Error From Api While Logging To Channel: {data}")
+    except Exception as e: logger.error(f"Error While logChannel: {e}")
     if isError: logger.error(string)
     else: logger.debug(string)
 

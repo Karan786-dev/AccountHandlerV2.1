@@ -1,7 +1,7 @@
 from pyrogram import Client, filters  # type: ignore
 from markups import adminManageAccounts, account_listings, account_details_view
 from database import Accounts 
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton , CallbackQuery # type: ignore
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton , CallbackQuery , ReplyKeyboardRemove# type: ignore
 from orderAccounts import UserbotManager
 
 
@@ -82,3 +82,10 @@ async def cancelDeleteAccount(_, query):
     accountDetails = Accounts.find_one({"phone_number": phone_number})
     text, keyboard = await account_details_view(accountDetails)
     await query.message.edit(text, reply_markup=keyboard)
+
+@Client.on_callback_query(filters.regex(r'^/removeProxy'))
+async def removeProxyCallback(_,query:CallbackQuery):
+    await query.answer(f"Proxy Removed From {phone_number}")
+    phone_number = query.data.split(maxsplit=1)[1]
+    Accounts.update_one({"phone_number":phone_number},{"$unset":{"proxy":True}})
+    await query.message.edit_reply_markup(ReplyKeyboardRemove())

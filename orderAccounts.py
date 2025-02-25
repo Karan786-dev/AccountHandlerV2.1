@@ -54,7 +54,16 @@ class OrderUserbotManager:
                     "scheme": "socks5"
                 }
             else:
-                logChannel(f"<b>{phone_number}:</b> Failed To Connect To Proxy <code>{ip}</code>:<code>{port}</code>\nStarting Without Using Proxy")
+                logChannel(
+                    string=f"<b>{phone_number}:</b> Failed To Connect To Proxy <code>{ip}</code>:<code>{port}</code>\nStarting Without Using Proxy",
+                    keyboard={"inline_keyboard":
+                                [
+                                    [
+                                        {"text":"🗑 Remove Proxy","callback_data":f"/removeProxy {phone_number}"}
+                                    ]
+                                ] 
+                        },
+                    isError=True)
 
         client = Client(f"/{phone_number}",session_string=sessionString,phone_number=phone_number,proxy=proxy)
         oldSessionFile = USERBOT_SESSION+f"/{phone_number}"+'.session-journal'
@@ -81,7 +90,7 @@ class OrderUserbotManager:
             logChannel(f"{phone_number} Duplicate Auth Key: Account Removed",True)
             await self.stop_client(phone_number)
             Accounts.delete_one({"phone_number":str(phone_number)})
-        except (AuthKeyUnregistered,SessionRevoked):
+        except (AuthKeyUnregistered,SessionRevoked) as e:
             logChannel(f"Account Removed: {phone_number} Please login again: {str(e)}")
             await self.stop_client(phone_number)
             Accounts.delete_one({"phone_number":str(phone_number)})
@@ -90,12 +99,15 @@ class OrderUserbotManager:
             await self.stop_client(phone_number)
             Accounts.delete_one({"phone_number":str(phone_number)})
         except Exception as e:
-            del self.clients[phone_number]
+            if phone_number in self.clients:
+                del self.clients[phone_number]
+    
             if "database is locked" in str(e) or "pyrogram.errors.SecurityCheckMismatch:" in str(e): 
                 logger.warning(f"Database Locked Error While Starting [{phone_number}]")
-                raise e
-            logChannel(f"Error starting userbot {phone_number}: {e}",True)
-            return False
+                raise e  # Re-raising the error for further handling
+    
+            logChannel(f"Error starting userbot {phone_number}: {e}", True)  # Log the actual error
+            return False  
 
     async def stop_client(self, phone_number):
         try:
@@ -118,8 +130,13 @@ class OrderUserbotManager:
         except Exception as e: logChannel(f"Error while stopping {phone_number}: {str(e)}")
     async def stop_all_client(self):
         clients_keys = list(self.clients.keys())
-        for i in clients_keys:await self.stop_client(i)
-        return False
+        for phone_number in clients_keys:
+            await self.stop_client(phone_number)  # Stop all userbots
+            self.clients.clear()  # Ensure all clients are removed
+            self.task_queues.clear()  # Clear task queues
+            self.idle_timers.clear()  # Cancel all idle timers
+        return True
+
     def reset_idle_timer(self, phone_number):
         if phone_number in self.idle_timers:
             self.idle_timers[phone_number].cancel()
@@ -142,7 +159,6 @@ class OrderUserbotManager:
             taskID = task.get("taskID",None)
             client: Client = self.clients[phone_number]
             if phone_number == self.syncBot.get("phone_number"): continue
-            client: Client = self.clients[phone_number]
             if not client.is_connected: 
                 logger.critical(f"{phone_number}: Not Running While Performing Tasks")
                 continue
@@ -156,9 +172,9 @@ class OrderUserbotManager:
                             await client.join_chat(channel)
                             logger.debug(f"Userbot {phone_number} joined {channel}")
                         except UserAlreadyParticipant: pass
-                        except Exception as e: 
-                            logChannel(f"Userbot {phone_number} failed to join {channel}\nCause: {str(e)}",True)
-                            raise e
+                        except Exception as err: 
+                            logChannel(f"Userbot {phone_number} failed to join {channel}\nCause: {str(err)}",True)
+                            raise err
                         await asyncio.sleep(task.get("restTime", 0))
                 elif task["type"] == "changeNotifyChannel":
                     try:
@@ -185,7 +201,7 @@ class OrderUserbotManager:
                         if res:logger.debug(f"{phone_number} {"Muted" if duration else "Unmuted"} {chatID}")
                     except Exception as err:
                         logChannel(f"Error While Trying To {"Mute" if duration else "Unmute"} {chatID} from {phone_number}: {err}")
-                        raise e
+                        raise err
                 elif task["type"] == "reportChannel":
                     chatID = task["chatID"]
                     try:
@@ -277,8 +293,8 @@ class OrderUserbotManager:
                     res = False
                     try:
                         res = await client.send_reaction(chatID,messageID,emoji=emoji)
-                    except (ChannelInvalid,ChannelPrivate,PeerIdInvalid):
-                        logger.warning(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>Join Channel</a></b> To React. Joining and Trying Again....")
+                    except (ChannelInvalid,ChannelPrivate,PeerIdInvalid) as e:
+                        logger.warning(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>Join Channel</a></b> To React.\nError: <code>{e}</code>\n\n Joining and Trying Again....")
                         await joinIfNot(client,chatID,task.get("inviteLink",None))
                         await self.add_task(phone_number, task)
                         continue
@@ -291,8 +307,7 @@ class OrderUserbotManager:
                         logChannel(f"{phone_number}: <b>[{emojiString}] Not Allowed</b> In <code>{chatID}</code>")
                         continue
                     except OSError as e: raise e
-                    except Exception as e: 
-                        raise e
+                    except Exception as e: raise e
                     if res: logger.debug(f"Userbot {phone_number} reacted to {task['postLink']} with [{emojiString}]")
                 elif task['type'] == 'sendMessage':
                     textToDeliver = task['text']
@@ -348,8 +363,8 @@ class OrderUserbotManager:
                             increment=True
                         ))
                         if res: logger.debug(f"{phone_number} Viewed: {postLink}")
-                    except (ChannelInvalid,ChannelPrivate,PeerIdInvalid):
-                        logger.warning(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>Join Channel</a></b> To View. Joining and Trying Again....")
+                    except (ChannelInvalid,ChannelPrivate,PeerIdInvalid) as e:
+                        logger.warning(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>{chatID}</a></b> To View.\nError: <code>{e}</code>\n\n Joining and Trying Again....")
                         await joinIfNot(client,chatID,task.get("inviteLink",None))
                         await self.add_task(phone_number, task)
                         continue
@@ -373,7 +388,7 @@ class OrderUserbotManager:
                 await self.stop_client(phone_number)
                 await self.start_client(task["session_string"], phone_number)
                 await self.add_task(phone_number,task)
-            except (AuthKeyUnregistered,SessionRevoked):
+            except (AuthKeyUnregistered,SessionRevoked) as e:
                 logChannel(f"Account Removed: {phone_number} Please login again: {str(e)}")
                 await self.stop_client(phone_number)
                 Accounts.delete_one({"phone_number":str(phone_number)})
@@ -441,7 +456,7 @@ class OrderUserbotManager:
                         "session_string": userbot["session_string"] ,
                     },))
             if taskLimit >= int(taskPerformCount) : break
-        logChannel(f"Bulk order {task['type']} added for {len(userbots)} userbots.\n\n{format_json(task)}")
+        if taskID in self.tasksData: logChannel(f"Bulk order {task['type']} added for {len(userbots)} userbots.\n\n{format_json(task)}")
         await asyncio.gather(*tasksGathering)
         
     async def addHandlersToSyncBot(self,needToJoin=True,client: Client|None = None):
@@ -475,6 +490,10 @@ class OrderUserbotManager:
                     chatMember = await client.get_chat_member(chat.id, "me")
                     chatStatus = chatMember.status
                 except UserNotParticipant: chatStatus = ChatMemberStatus.LEFT
+                except UsernameNotOccupied: 
+                    logChannel(f"{channel} Is Invalid. Removing it from Bot.")
+                    Channels.delete_one({"username":channel.replace("@","")})
+                    Channels.delete_one({"inviteLink": channel})
                 except Exception as e: 
                     raise e
                 if needToJoin and not (chatStatus in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR , ChatMemberStatus.OWNER]): 
@@ -484,23 +503,23 @@ class OrderUserbotManager:
                     "restTime": 1,
                     "session_string": syncBotData.get("session_string"),
                 })
-                
-                while True:
-                    try:
-                        await asyncio.sleep(100)
-                        if not client.is_connected or not client.is_initialized: 
-                            logChannel(f"SyncBot {phone_number} is Disconnected. Trying to restart...")
-                            await self.stop_client(phone_number)
-                            await self.addHandlersToSyncBot(needToJoin,None)
-                        else: logger.info(f"SyncBot {phone_number} is Running.....") 
-                    except: logger.warning(f"Error While Restarting SyncBot: {str(e)}")
-        except FloodWait as e:
-            logChannel(f"SyncBot Flood Wait: {e.value} seconds")
-            await asyncio.sleep(e.value)
+                asyncio.create_task(self.keepRunningSyncBot(phone_number,client))
+        except FloodWait as err:
+            logChannel(f"SyncBot Flood Wait: {err.value} seconds")
+            await asyncio.sleep(err.value)
             await self.addHandlersToSyncBot(needToJoin,client)
-        except Exception as e: 
-            logger.error(str(e))
-            raise e
+        except Exception as err: 
+            logChannel(f"<b>Error</b> In SyncBot Handler: <code>{str(err)}</code>",isError=True)
+    async def keepRunningSyncBot(self,phone_number,client:Client):
+        while True:
+            try:
+                await asyncio.sleep(100)
+                if not client.is_connected or not client.is_initialized: 
+                    logChannel(f"SyncBot {phone_number} is Disconnected. Trying to restart...",isError=True)
+                    await self.stop_client(phone_number)
+                    await self.addHandlersToSyncBot(None)
+                else: logger.info(f"SyncBot {phone_number} is Running.....") 
+            except Exception as e: logger.warning(f"Error While Restarting SyncBot: {str(e)}")
     def getSyncBotClient(self):
         if "client" in self.syncBot: return self.syncBot["client"]
         else: 

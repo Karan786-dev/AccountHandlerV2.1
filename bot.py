@@ -1,7 +1,5 @@
 import asyncio
-import os
 import sys
-import subprocess
 from config import SESSION, API_HASH, API_ID, BOT_TOKEN, USERBOT_SESSION
 from pyrogram import Client, idle  # type: ignore
 from functions import temp , logChannel
@@ -9,9 +7,9 @@ from pathlib import Path
 from orderAccounts import UserbotManager
 from database import Accounts
 import shutil
-import uvloop
+from asyncio.exceptions import *
+from logger import logger
 
-# uvloop.install()
 
 if Path(SESSION).exists(): shutil.rmtree(SESSION)
 if Path(USERBOT_SESSION).exists(): shutil.rmtree(USERBOT_SESSION)
@@ -52,13 +50,20 @@ class Bot(Client):
             raise e
 
     async def stop(self, *args):
-        print('Stopping main bot............')
-        await super().stop()
-        print("Stopping Active Userbots")
-        await UserbotManager.stop_all_client()
-        sys.exit()
+        try:
+            logger.debug(">> Cancelling tasks now")
+            for task in asyncio.all_tasks():
+                task.cancel()
 
-app = Bot()
-app.run()
-idle()
-app.stop()
+            logger.debug(">> Done cancelling tasks")
+            logger.debug('>> Shutting down main bot')
+            await super().stop()
+            sys.exit()
+        except CancelledError: pass
+
+try:
+    app = Bot()
+    app.run()
+    idle()
+    app.stop()
+except KeyboardInterrupt: logger.debug("Ctrl+C Pressed. Shutting Down.....")
