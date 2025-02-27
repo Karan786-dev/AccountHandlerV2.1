@@ -85,7 +85,7 @@ async def cancelDeleteAccount(_, query):
 
 @Client.on_callback_query(filters.regex(r'^/removeProxy'))
 async def removeProxyCallback(_,query:CallbackQuery):
-    await query.answer(f"Proxy Removed From {phone_number}")
     phone_number = query.data.split(maxsplit=1)[1]
+    await query.answer(f"Proxy Removed From {phone_number}")
     Accounts.update_one({"phone_number":phone_number},{"$unset":{"proxy":True}})
     await query.message.edit_reply_markup(ReplyKeyboardRemove())

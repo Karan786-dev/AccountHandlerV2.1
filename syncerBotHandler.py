@@ -24,11 +24,12 @@ async def messageHandler(_,message:Message):
     if not len(tasksData):  return
     reactionEmojis = channelData.get('reactionsType', [])
     tasksArray = []
+    loop = asyncio.get_running_loop()
     if ("view_posts" in tasksData) and channelData.get("isViewEnabled",False):
         viewRestTime = channelData.get("viewRestTime",0)
         viewCount = channelData.get("viewCount",0)
         userbots = list(Accounts.find({}))[:int(random.choice(viewCount if isinstance(viewCount,list) else [viewCount]))]
-        tasksArray.append(UserbotManager.bulk_order(userbots,{
+        asyncio.create_task(UserbotManager.bulk_order(userbots,{
             "type":"viewPosts",
             "postLink": postLink,
             "restTime":viewRestTime,
@@ -39,7 +40,7 @@ async def messageHandler(_,message:Message):
         reactRestTime = channelData.get('reactionRestTime',0)
         reactionCount = channelData.get('reactionsCount',0) 
         userbots = list(Accounts.find({}))[:int(random.choice(reactionCount if isinstance(reactionCount,list) else [reactionCount]))]
-        tasksArray.append(UserbotManager.bulk_order(userbots,{
+        asyncio.create_task(UserbotManager.bulk_order(userbots,{
             "type":"reactPost",
             "postLink": postLink,
             "restTime":reactRestTime,
@@ -47,21 +48,20 @@ async def messageHandler(_,message:Message):
             "emoji":reactionEmojis,
             "inviteLink": inviteLink
         }))
-    semaphore = asyncio.Semaphore(50)
-    async def safe_task(task_coro):
-        async with semaphore:
-            attempt = 0
-            retries = 5
-            while attempt < retries:
-                try:
-                    await task_coro
-                    return
-                except Exception as e:
-                    print(f"Task failed with error on attempt {attempt+1}: {e}")
-                    attempt += 1
-                    await asyncio.sleep(2 ** attempt)
-            print("Task failed after all retries.")
-    for task in tasksArray: asyncio.create_task(safe_task(task))
+    # semaphore = asyncio.Semaphore(50)
+    # async def safe_task(task_coro):
+    #     async with semaphore:
+    #         attempt = 0
+    #         retries = 5
+    #         while attempt < retries:
+    #             try:
+    #                 await task_coro
+    #                 return
+    #             except Exception as e:
+    #                 print(f"Task failed with error on attempt {attempt+1}: {e}")
+    #                 attempt += 1
+    #                 await asyncio.sleep(2 ** attempt)
+    #         print("Task failed after all retries.")
         
 async def voiceChatHandler(client:Client, update, users, chats):
     try:

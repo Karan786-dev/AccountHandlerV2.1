@@ -19,19 +19,21 @@ import os
 import time
 import unicodedata
 from logger import logger
+from methods import *
 
 
 class OrderUserbotManager:
-    def __init__(self, idle_timeout=360):
+    def __init__(self):
         self.clients = {}
         self.task_queues = {}
         self.idle_timers = {}
-        self.idle_timeout = idle_timeout
+        self.idle_timeout = 360
         self.syncBot = {}
         self.sessionStrings = {}
         self.syncBotHandlersData = {}
         self.tasksData = {}
-
+        self.num_workers = 1
+        self.workers = {}
     async def start_client(self,sessionString ,phone_number , isSyncBot=False):
         if phone_number in self.clients:
             if not isSyncBot:self.reset_idle_timer(phone_number)
@@ -76,8 +78,12 @@ class OrderUserbotManager:
             self.sessionStrings[phone_number] = sessionString
             logger.info(f"Userbot {phone_number} started: {(ip+":"+port) if proxyDetail else "Without Proxy"}")
             await client.send_message("me","Ping!")
-            if phone_number not in self.task_queues: self.task_queues[phone_number] = asyncio.Queue()
-            asyncio.create_task(self.process_task_queue(phone_number))
+            if phone_number not in self.task_queues: 
+                self.task_queues[phone_number] = asyncio.Queue()
+                self.workers[phone_number] = []
+                for _ in range(self.num_workers):
+                    worker = asyncio.create_task(self.process_task_queue(phone_number))
+                    self.workers[phone_number].append(worker)
             if not isSyncBot: self.reset_idle_timer(phone_number)
             if isSyncBot: 
                 self.syncBot = {
@@ -104,30 +110,39 @@ class OrderUserbotManager:
     
             if "database is locked" in str(e) or "pyrogram.errors.SecurityCheckMismatch:" in str(e): 
                 logger.warning(f"Database Locked Error While Starting [{phone_number}]")
-                raise e  # Re-raising the error for further handling
+                raise e 
     
-            logChannel(f"Error starting userbot {phone_number}: {e}", True)  # Log the actual error
+            logChannel(f"Error starting userbot {phone_number}: {e}", True) 
             return False  
 
     async def stop_client(self, phone_number):
         try:
             if phone_number in self.clients:
                 client = self.clients[phone_number]
+                del self.clients[phone_number]
                 try:
                     if client.is_initialized: await client.stop()
                     elif client.is_connected: await client.disconnect()
                     logger.warning(f"Userbot {phone_number} stopped.")
                 except Exception as err:
                     logger.critical(f"Error While Disconnecting [{phone_number}]: <b>{type(err)}</b><code>{err}</code>")
-                del self.clients[phone_number]
+                
             if phone_number == self.syncBot.get("phone_number"):self.syncBotHandlersData[phone_number] = []
             if phone_number in self.task_queues:
-                self.task_queues[phone_number].put_nowait(None)
+                # Signal each worker to exit
+                for _ in range(self.num_workers):
+                    self.task_queues[phone_number].put_nowait(None)
                 del self.task_queues[phone_number]
+                # Optionally, wait for the worker tasks to finish or cancel them
+                for worker in self.workers.get(phone_number, []):
+                    worker.cancel()
+                if phone_number in self.workers:
+                    del self.workers[phone_number]
+
             if phone_number in self.idle_timers:
                 self.idle_timers[phone_number].cancel()
                 del self.idle_timers[phone_number]
-        except Exception as e: logChannel(f"Error while stopping {phone_number}: {str(e)}")
+        except Exception as e: logChannel(f"Error While Removing [{phone_number}]: <b>{type(err)}</b><code>{err}</code>")
     async def stop_all_client(self):
         clients_keys = list(self.clients.keys())
         for phone_number in clients_keys:
@@ -163,216 +178,26 @@ class OrderUserbotManager:
                 logger.critical(f"{phone_number}: Not Running While Performing Tasks")
                 continue
             try:
-                if task["type"] == "join_channel":
-                    for channel in task["channels"]:
-                        try:
-                            if not is_number(channel):
-                                channelData = await client.get_chat(channel)
-                                channel = getattr(channelData,"id",channel)
-                            await client.join_chat(channel)
-                            logger.debug(f"Userbot {phone_number} joined {channel}")
-                        except UserAlreadyParticipant: pass
-                        except Exception as err: 
-                            logChannel(f"Userbot {phone_number} failed to join {channel}\nCause: {str(err)}",True)
-                            raise err
-                        await asyncio.sleep(task.get("restTime", 0))
-                elif task["type"] == "changeNotifyChannel":
-                    try:
-                        chatID = task["chatID"]
-                        # If Duration is 0 then channel will be unmuted
-                        foreverTime = 2147483647
-                        duration = task.get("duration",foreverTime) #Default number 2147483647 is for forever mute 
-                        finalDuration = duration if not isinstance(duration,list) else random.randint(int(duration[0]),int(duration[1]))
-                        channelInfo = await joinIfNot(client,chatID,task.get("inviteLink",None))
-                        async for dialog in client.get_dialogs():
-                            if dialog.chat.id == channelInfo.id: break
-                        channelPeer = await client.resolve_peer(channelInfo.id)
-                        mute_untill = (int(time.time()) + duration) if not duration == foreverTime else foreverTime
-                        res = await client.invoke(
-                            UpdateNotifySettings(
-                                peer=InputNotifyPeer(peer=channelPeer),
-                                settings=InputPeerNotifySettings(
-                                    show_previews=False,
-                                    silent=False,
-                                    mute_until=mute_untill
-                                )
-                            )
-                        )
-                        if res:logger.debug(f"{phone_number} {"Muted" if duration else "Unmuted"} {chatID}")
-                    except Exception as err:
-                        logChannel(f"Error While Trying To {"Mute" if duration else "Unmute"} {chatID} from {phone_number}: {err}")
-                        raise err
-                elif task["type"] == "reportChannel":
-                    chatID = task["chatID"]
-                    try:
-                        if str(chatID).startswith("-"): await joinIfNot(client,chatID,task.get("inviteLink",None))
-                        input_channel = await client.resolve_peer(str(chatID))
-                        res = await client.invoke(
-                            ReportPeer(
-                                peer=input_channel,
-                                message="Spam",
-                                reason=InputReportReasonSpam()
-                            )
-                        )
-                        logger.debug(f"Userbot {phone_number} reported {chatID}: {res}")
-                    except FloodWait as e:
-                        logger.warning(f"{phone_number}: Flood Wait: {e.value} seconds")
-                        await asyncio.sleep(e.value)
-                        await self.add_task(phone_number, task) 
-                    except PeerIdInvalid or ChannelPrivate or ChannelInvalid:
-                        logger.warning(f"{phone_number}: Invalid Peer ID for {chatID}. Retrying...")
-                        await joinIfNot(client,chatID,task.get("inviteLink",None))
-                        await self.add_task(phone_number, task)
-                    except Exception as e: 
-                        logChannel(f"{phone_number}: Failed To Report: {str(e)}",True)
-                        raise e
-
-                elif task["type"] == "leave_channel":
-                    for channel in task["channels"]:
-                        if phone_number == self.syncBot.get("phone_number"): continue
-                        try:
-                            await client.leave_chat(channel if is_number(channel) else channel)
-                            logger.debug(f"Userbot {phone_number} leaved {channel}")
-                        except Exception as e:
-                            logger.error(f"Userbot {phone_number} failed to leave {channel}\nCause: {str(e)}")
-                            raise e
-                elif task["type"] == "joinVoiceChat":
-                    chatID = task["chatID"]
-                    inviteLink = task.get("inviteLink",None)
-                    duration = task.get("duration",0) 
-                    finalDuration =  0
-                    if not isinstance(duration,list): finalDuration = duration
-                    elif isinstance(duration,list) and len(duration) == 2: finalDuration = random.randint(int(duration[0]),int(duration[1]))
-                    elif isinstance(duration,list) and len(duration) == 1: finalDuration = duration[0]
-                    else: finalDuration = duration
-                    try:
-                        app = PyTgCalls(client)
-                        await app.start()
-                        await app.play(chat_id=chatID)
-                        logger.debug(f"{phone_number} joined the voice call and will leave after {finalDuration if finalDuration else "INFINITY"}s")
-                        if finalDuration:
-                            def leaveVc():
-                                try:asyncio.create_task(app.leave_call(chatID))
-                                except GroupcallForbidden: 
-                                    if self.tasksData.get(taskID,{}).get("canStop",True): self.stopTask(taskID)
-                                except Exception as e: raise e
-                                logger.debug(f"{phone_number} Leaved the call after {finalDuration}s")
-                            timer = Timer(float(finalDuration),leaveVc)
-                            timer.start()
-                    except ChannelInvalid:
-                        await client.join_chat(inviteLink)
-                        await self.add_task(phone_number,task)
-                    except UnMuteNeeded: logChannel(f"<b>Error: </b><code>UnmuteNeeded</code> From {phone_number} While Joining Vc In <code>{chatID}</code>",True)
-                    except ChatAdminRequired: 
-                        if self.tasksData.get(taskID,{}).get("canStop",True):
-                            logChannel(f"<b>Call Stopped From Channel: </b><code>{chatID}</code><b>  :   </b><code>{taskID}</code>. <b>Stopping Pending Tasks</b>")
-                            self.stopTask(taskID)
-                    except Exception as e: raise e
-                elif task["type"] == "leaveVoiceChat":
-                    chatID = task["chatID"]
-                    try:
-                        app = PyTgCalls(client)
-                        await app.leave_call(chatID)
-                        logger.debug(f"{phone_number} had leaved the call.")
-                    except GroupcallForbidden: self.stopTask(taskID)
-                    except Exception as e: 
-                        logChannel("Error While Leaving Call: "+str(e),True)
-                        raise e
-                elif task["type"] == "reactPost":
-                    postLink = task["postLink"].replace("/c","")
-                    parsed_url = urlparse(postLink)
-                    path_segments = parsed_url.path.strip("/").split("/")
-                    chatID = str(path_segments[0])
-                    messageID = int(path_segments[1])
-                    if is_number(chatID):
-                        chatID = int("-100"+chatID)  if  not chatID.startswith("-") else int(chatID)
-                        messageID = int(path_segments[1])
-                    emojis = task['emoji']
-                    emojiString = random.choice(emojis)
-                    emoji = unicodedata.normalize("NFKC", emojiString)
-                    res = False
-                    try:
-                        res = await client.send_reaction(chatID,messageID,emoji=emoji)
-                    except (ChannelInvalid,ChannelPrivate,PeerIdInvalid) as e:
-                        logChannel(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>Join Channel</a></b> To React.\nError: <code>{e}</code>\n\n Joining and Trying Again....")
-                        await joinIfNot(client,chatID,task.get("inviteLink",None))
-                        await self.add_task(phone_number, task)
-                        continue
-                    except FloodWait as e:
-                        logger.warning(f"Flood wait for {phone_number}: Sleeping for {e.value} seconds")
-                        await asyncio.sleep(e.value)
-                        await self.add_task(phone_number, task)
-                        continue
-                    except ReactionInvalid:
-                        logChannel(f"{phone_number}: <b>[{emojiString}] Not Allowed</b> In <code>{chatID}</code>")
-                        continue
-                    except OSError as e: raise e
-                    except Exception as e: raise e
-                    if res: logger.debug(f"Userbot {phone_number} reacted to {task['postLink']} with [{emojiString}]")
-                elif task['type'] == 'sendMessage':
-                    textToDeliver = task['text']
-                    chatIDToDeliver = task['chatID']
-                    await client.send_message(chatIDToDeliver,textToDeliver)
-                    logger.debug(f"Message Delivered By: {phone_number}")
-                elif task['type'] == "votePoll":
-                    chatID = "@"+task["chatID"] if not is_number(task["chatID"]) else int(task["chatID"])
-                    messageID = int(task["messageID"])
-                    try: 
-                        if str(chatID).startswith("-"): 
-                            if not await joinIfNot(client,chatID,task.get("inviteLink",None)): return
-                        await client.vote_poll(chatID,messageID,task["optionIndex"])
-                        logger.debug(f"Userbot {phone_number} voted on {chatID} with {task['optionIndex']}")
-                    except Exception as e: 
-                        logger.error(f"{phone_number} Failed To Vote: {str(e)}")
-                        raise e
-                elif task['type'] == 'sendPhoto':
-                    photoLink = task['photoLink']
-                    chatIDToDeliver = task['chatID']
-                    chat_username, message_id = photoLink.split('/')[-2:]
-                    message_id = int(message_id)
-                    try:
-                        fileChat = await client.get_chat(chat_username)
-                        message = await client.get_messages(fileChat.id, message_id)
-                        fileID = message.photo.file_id
-                        await client.send_photo(chat_id=chatIDToDeliver, photo=fileID)
-                        logger.debug(f"Photo Delivered To {chatIDToDeliver} By: {phone_number}")
-                    except UserNotParticipant:
-                        logger.warning(f"User {phone_number} Not Participant In {chatIDToDeliver}")
-                        await client.join_chat(chat_username)
-                    except FloodWait as e:
-                        logger.warning(f"Flood wait for {phone_number}: Sleeping for {e.value} seconds")
-                        await asyncio.sleep(e.value) 
-                        continue
-                    except Exception as e:
-                        logChannel(f"{phone_number}: Failed To Send Photo: {str(e)}")
-                        raise e
-                elif task["type"] == "viewPosts":
-                    postLink = task["postLink"].replace("/c","")
-                    parsed_url = urlparse(postLink)
-                    path_segments = parsed_url.path.strip("/").split("/")
-                    chatID = str(path_segments[0])
-                    messageID = int(path_segments[1])
-                    if is_number(chatID):
-                        chatID = int("-100"+chatID)  if  not chatID.startswith("-") else int(chatID)
-                        messageID = int(path_segments[1])
-                    try:
-                        channelPeer = await client.resolve_peer(chatID)
-                        res = await client.invoke(GetMessagesViews(
-                            peer=channelPeer,
-                            id=[messageID],
-                            increment=True
-                        ))
-                        if res: logger.debug(f"{phone_number} Viewed: {postLink}")
-                    except (ChannelInvalid,ChannelPrivate,PeerIdInvalid) as e:
-                        logChannel(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>{chatID}</a></b> To View.\nError: <code>{e}</code>\n\n Joining and Trying Again....")
-                        await joinIfNot(client,chatID,task.get("inviteLink",None))
-                        await self.add_task(phone_number, task)
-                        continue
-                    except OSError as e: raise e
-                    except MessageIdInvalid: raise e
-                    except Exception as e: 
-                        logChannel(f"{phone_number} Failed To View Post: {str(e)}")
-                        raise e
+                methods = {
+                    "join_channel": joinChannel,
+                    "changeNotifyChannel": mute_unmute,
+                    "reportChannel": reportChat,
+                    "leave_channel": leaveChannel,
+                    "joinVoiceChat": joinVc,
+                    "leaveVoiceChat": leaveVc,
+                    "reactPost": reactPost,
+                    "sendMessage": sendMessage,
+                    "sendPhoto": sendPhoto,
+                    "votePoll": votePoll,
+                    "viewPosts": viewPost
+                }
+                method = methods[task.get("type")]
+                await method(phone_number=phone_number,task=task,client=client,taskID=taskID,self=self)
+            except (ChannelInvalid,ChannelPrivate,PeerIdInvalid , UserNotParticipant) as e:
+                logChannel(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>{task.get('inviteLink')}</a></b> To View.\nError: <code>{e}</code>\n\n Joining and Trying Again....")
+                await joinIfNot(client,None,task.get("inviteLink",None))
+                await self.add_task(phone_number, task)
+                continue
             except UserAlreadyParticipant: pass
             except MessageIdInvalid: 
                 if self.tasksData.get(taskID,{}).get("canStop",True):
