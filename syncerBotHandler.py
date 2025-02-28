@@ -16,7 +16,7 @@ async def messageHandler(_: Client,message:Message):
     chatUsername = message.chat.username 
     inviteLink = f"@{chatUsername}" if chatUsername else channelData.get("inviteLink")
     messageID = message.id 
-    postLink = f"https://t.me/c/{str(channelID).replace("-100","").replace("-","") if not chatUsername else chatUsername}/{messageID}"
+    postLink = f"https://t.me/{str(channelID).replace("-100","").replace("-","") if not chatUsername else chatUsername}/{messageID}"
     tasksData = channelData.get("services",[])
     if not len(tasksData):  return
     reactionEmojis = channelData.get('reactionsType', [])
