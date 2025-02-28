@@ -20,7 +20,7 @@ import time
 import unicodedata
 from logger import logger
 
-async def viewPost(task,client,phone_number,self,taskID):
+async def viewPost(task,client: Client,phone_number,self,taskID):
     postLink = task["postLink"].replace("/c","")
     parsed_url = urlparse(postLink)
     path_segments = parsed_url.path.strip("/").split("/")
@@ -29,6 +29,9 @@ async def viewPost(task,client,phone_number,self,taskID):
     if is_number(chatID):
         chatID = int("-100"+chatID)  if  not chatID.startswith("-") else int(chatID)
         messageID = int(path_segments[1])
+    if not is_number:
+        channelData = await client.get_chat(chatID)
+        chatID = channelData.id
     try:
         channelPeer = await client.resolve_peer(chatID)
         res = await client.invoke(GetMessagesViews(
@@ -37,10 +40,10 @@ async def viewPost(task,client,phone_number,self,taskID):
             increment=True
             )
         )
-        if res: logger.debug(f"{phone_number} Viewed: {postLink}")
+        # if res: logger.debug(f"{phone_number} Viewed: {postLink}")
     except Exception as e: raise e
 
-async def sendPhoto(task,client,phone_number,self,taskID):
+async def sendPhoto(task,client: Client,phone_number,self,taskID):
     photoLink = task['photoLink']
     chatIDToDeliver = task['chatID']
     chat_username, message_id = photoLink.split('/')[-2:]
@@ -55,7 +58,7 @@ async def sendPhoto(task,client,phone_number,self,taskID):
         logChannel(f"{phone_number}: Failed To Send Photo: {str(e)}")
         raise e
 
-async def votePoll(task,client,phone_number,self,taskID):
+async def votePoll(task,client: Client,phone_number,self,taskID):
     chatID = "@"+task["chatID"] if not is_number(task["chatID"]) else int(task["chatID"])
     messageID = int(task["messageID"])
     try: 
@@ -67,13 +70,13 @@ async def votePoll(task,client,phone_number,self,taskID):
         logger.error(f"{phone_number} Failed To Vote: {str(e)}")
         raise e
 
-async def sendMessage(task,client,phone_number,self,taskID):
+async def sendMessage(task,client: Client,phone_number,self,taskID):
     textToDeliver = task['text']
     chatIDToDeliver = task['chatID']
     await client.send_message(chatIDToDeliver,textToDeliver)
     logger.debug(f"Message Delivered By: {phone_number}")
 
-async def reactPost(task,client,phone_number,self,taskID):
+async def reactPost(task,client: Client,phone_number,self,taskID):
     postLink = task["postLink"].replace("/c","")
     parsed_url = urlparse(postLink)
     path_segments = parsed_url.path.strip("/").split("/")
@@ -89,9 +92,9 @@ async def reactPost(task,client,phone_number,self,taskID):
     except ReactionInvalid:
         logChannel(f"{phone_number}: <b>[{emojiString}] Not Allowed</b> In <code>{chatID}</code>")
     except Exception as e: raise e
-    if res: logger.debug(f"Userbot {phone_number} reacted to {task['postLink']} with [{emojiString}]")
+    # if res: logger.debug(f"Userbot {phone_number} reacted to {task['postLink']} with [{emojiString}]")
 
-async def leaveVc(task,client,phone_number,self,taskID):
+async def leaveVc(task,client: Client,phone_number,self,taskID):
     chatID = task["chatID"]
     try:
         app = PyTgCalls(client)
@@ -103,7 +106,7 @@ async def leaveVc(task,client,phone_number,self,taskID):
         raise e
 
 
-async def joinVc(task,client,phone_number,self,taskID):
+async def joinVc(task,client: Client,phone_number,self,taskID):
     chatID = task["chatID"]
     inviteLink = task.get("inviteLink",None)
     duration = task.get("duration",0) 
@@ -129,14 +132,15 @@ async def joinVc(task,client,phone_number,self,taskID):
     except ChannelInvalid:
         await client.join_chat(inviteLink)
         await self.add_task(phone_number,task)
-    except UnMuteNeeded: logChannel(f"<b>Error: </b><code>UnmuteNeeded</code> From {phone_number} While Joining Vc In <code>{chatID}</code>",True)
-    except ChatAdminRequired: 
+    except UnMuteNeeded: 
+        logger.critical(f"Error: UnmuteNeeded From {phone_number} While Joining Vc In {chatID}",True)
+    except (ChatAdminRequired , GroupcallForbidden): 
         if self.tasksData.get(taskID,{}).get("canStop",True):
             logChannel(f"<b>Call Stopped From Channel: </b><code>{chatID}</code><b>  :   </b><code>{taskID}</code>. <b>Stopping Pending Tasks</b>")
             self.stopTask(taskID)
     except Exception as e: raise e
 
-async def reportChat(task,client,phone_number,self,taskID):
+async def reportChat(task,client: Client,phone_number,self,taskID):
     try:
         chatID = task["chatID"]
         if str(chatID).startswith("-"): await joinIfNot(client,chatID,task.get("inviteLink",None))
@@ -161,7 +165,7 @@ async def reportChat(task,client,phone_number,self,taskID):
         logChannel(f"{phone_number}: Failed To Report: {str(e)}",True)
         raise e
 
-async def leaveChannel(task,client,phone_number,self,taskID):
+async def leaveChannel(task,client: Client,phone_number,self,taskID):
     for channel in task["channels"]:
         try:
             await client.leave_chat(channel if is_number(channel) else channel)
@@ -170,7 +174,7 @@ async def leaveChannel(task,client,phone_number,self,taskID):
             logger.error(f"Userbot {phone_number} failed to leave {channel}\nCause: {str(e)}")
             raise e
 
-async def joinChannel(task,client,phone_number,self,taskID):
+async def joinChannel(task,client: Client,phone_number,self,taskID):
     for channel in task["channels"]:
         try:
             if not is_number(channel):
@@ -182,7 +186,7 @@ async def joinChannel(task,client,phone_number,self,taskID):
         except Exception as err: raise err
         await asyncio.sleep(task.get("restTime", 0))
 
-async def mute_unmute(task,client,phone_number,self,taskID):
+async def mute_unmute(task,client: Client,phone_number,self,taskID):
     try:
         chatID = task["chatID"]
         # If Duration is 0 then channel will be unmuted

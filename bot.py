@@ -38,12 +38,9 @@ class Bot(Client):
             temp.U_NAME = me.username
             temp.B_NAME = me.first_name
             self.username = '@' + me.username
-            logChannel(f"Bot started!!!!!")
-            logChannel(
-                f"""Username: @{me.username}"""
-            )
+            logChannel(f"<b>✅ Bot Successfully Started!</b>\n<b>🤖 Bot Username:</b> @{me.username}")
             syncBotData = Accounts.find_one({"syncBot":True})
-            if not syncBotData: return print("Sync Bot Not Found")
+            if not syncBotData: return logChannel("<b>🚫 Syncer Bot not Available.</b>")
             await UserbotManager.start_client(syncBotData.get("session_string"),syncBotData.get("phone_number"),isSyncBot=True)
         except Exception as e:
             print(f"Error starting bot: {e}")

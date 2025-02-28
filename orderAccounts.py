@@ -32,8 +32,6 @@ class OrderUserbotManager:
         self.sessionStrings = {}
         self.syncBotHandlersData = {}
         self.tasksData = {}
-        self.num_workers = 1
-        self.workers = {}
     async def start_client(self,sessionString ,phone_number , isSyncBot=False):
         if phone_number in self.clients:
             if not isSyncBot:self.reset_idle_timer(phone_number)
@@ -76,14 +74,11 @@ class OrderUserbotManager:
             if isSyncBot:await client.start()
             else: await client.connect()
             self.sessionStrings[phone_number] = sessionString
-            logger.info(f"Userbot {phone_number} started: {(ip+":"+port) if proxyDetail else "Without Proxy"}")
+            # logger.info(f"Userbot {phone_number} started: {(ip+":"+port) if proxyDetail else "Without Proxy"}")
             await client.send_message("me","Ping!")
             if phone_number not in self.task_queues: 
                 self.task_queues[phone_number] = asyncio.Queue()
-                self.workers[phone_number] = []
-                for _ in range(self.num_workers):
-                    worker = asyncio.create_task(self.process_task_queue(phone_number))
-                    self.workers[phone_number].append(worker)
+            asyncio.create_task(self.process_task_queue(phone_number))
             if not isSyncBot: self.reset_idle_timer(phone_number)
             if isSyncBot: 
                 self.syncBot = {
@@ -123,21 +118,14 @@ class OrderUserbotManager:
                 try:
                     if client.is_initialized: await client.stop()
                     elif client.is_connected: await client.disconnect()
-                    logger.warning(f"Userbot {phone_number} stopped.")
+                    # logger.warning(f"Userbot {phone_number} stopped.")
                 except Exception as err:
                     logger.critical(f"Error While Disconnecting [{phone_number}]: <b>{type(err)}</b><code>{err}</code>")
                 
             if phone_number == self.syncBot.get("phone_number"):self.syncBotHandlersData[phone_number] = []
             if phone_number in self.task_queues:
-                # Signal each worker to exit
-                for _ in range(self.num_workers):
-                    self.task_queues[phone_number].put_nowait(None)
+                self.task_queues[phone_number].put_nowait(None)
                 del self.task_queues[phone_number]
-                # Optionally, wait for the worker tasks to finish or cancel them
-                for worker in self.workers.get(phone_number, []):
-                    worker.cancel()
-                if phone_number in self.workers:
-                    del self.workers[phone_number]
 
             if phone_number in self.idle_timers:
                 self.idle_timers[phone_number].cancel()
@@ -177,6 +165,7 @@ class OrderUserbotManager:
             if not client.is_connected: 
                 logger.critical(f"{phone_number}: Not Running While Performing Tasks")
                 continue
+            tasks = []
             try:
                 methods = {
                     "join_channel": joinChannel,
@@ -192,7 +181,8 @@ class OrderUserbotManager:
                     "viewPosts": viewPost
                 }
                 method = methods[task.get("type")]
-                await method(phone_number=phone_number,task=task,client=client,taskID=taskID,self=self)
+                tasks.append(asyncio.create_task(method(phone_number=phone_number, task=task, client=client, taskID=taskID, self=self)))
+                await asyncio.gather(*tasks)  # Run all tasks in parallel
             except (ChannelInvalid,ChannelPrivate,PeerIdInvalid , UserNotParticipant) as e:
                 logChannel(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>{task.get('inviteLink')}</a></b> To View.\nError: <code>{e}</code>\n\n Joining and Trying Again....")
                 await joinIfNot(client,None,task.get("inviteLink",None))
@@ -241,7 +231,7 @@ class OrderUserbotManager:
         if taskID in self.tasksData: del self.tasksData[taskID]
     async def add_task(self, phone_number, task):
         if phone_number not in self.clients:
-            logger.warning(f"Userbot {phone_number} not active. Starting...")
+            # logger.warning(f"Userbot {phone_number} not active. Starting...")
             if not await self.start_client(task["session_string"], phone_number): return
         if not phone_number in self.task_queues: self.task_queues[phone_number] = asyncio.Queue()
         await self.task_queues[phone_number].put(task)
@@ -281,7 +271,7 @@ class OrderUserbotManager:
                         "session_string": userbot["session_string"] ,
                     },))
             if taskLimit >= int(taskPerformCount) : break
-        if taskID in self.tasksData: logChannel(f"Bulk order {task['type']} added for {len(userbots)} userbots.\n\n{format_json(task)}")
+        # if taskID in self.tasksData: logChannel(f"Bulk order {task['type']} added for {len(userbots)} userbots.\n\n{format_json(task)}")
         await asyncio.gather(*tasksGathering)
         
     async def addHandlersToSyncBot(self,needToJoin=True,client: Client|None = None):
@@ -306,8 +296,8 @@ class OrderUserbotManager:
                 self.syncBotHandlersData[phone_number] = []
                 self.syncBotHandlersData[phone_number].append(client.add_handler(MessageHandler(messageHandler)))
                 self.syncBotHandlersData[phone_number].append(client.add_handler(RawUpdateHandler(voiceChatHandler)))
-            except:pass
-            logChannel(f"Handlers added for syncBot")
+            except Exception as e:logger.critical(f"Error adding Handler To SyncBot: {e}")
+            logChannel("<b>✅ Handlers registered for SyncBot!</b>")
             for channel in channelsLink:
                 chatStatus = None
                 try: 
@@ -316,7 +306,7 @@ class OrderUserbotManager:
                     chatStatus = chatMember.status
                 except UserNotParticipant: chatStatus = ChatMemberStatus.LEFT
                 except UsernameNotOccupied: 
-                    logChannel(f"{channel} Is Invalid. Removing it from Bot.")
+                    logChannel(f"{channel} Is Invalid. Removing it from Bot.",isError=True)
                     Channels.delete_one({"username":channel.replace("@","")})
                     Channels.delete_one({"inviteLink": channel})
                 except Exception as e: 
