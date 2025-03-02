@@ -57,8 +57,8 @@ async def messageHandler(_: Client,message:Message):
         })))
         text += (
             f"<b>🎭 Auto Reactions:</b>\n"
-            f"<b>├─ Reactions Count</b>: <code>{viewCount}</code>\n"
-            f"<b>├─ Delay: </b><code>{viewRestTime}</code>\n"
+            f"<b>├─ Reactions Count</b>: <code>{reactionCount}</code>\n"
+            f"<b>├─ Delay: </b><code>{reactRestTime}</code>\n"
             f"<b>├─ Emoji's: </b><code>{' '.join(reactionEmojis) or 'None'}</code>"
         )
     if len(tasksArray): 

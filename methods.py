@@ -91,6 +91,7 @@ async def reactPost(task,client: Client,phone_number,self,taskID):
         res = await client.send_reaction(chatID,messageID,emoji=emoji)
     except ReactionInvalid:
         logChannel(f"{phone_number}: <b>[{emojiString}] Not Allowed</b> In <code>{chatID}</code>")
+    except ChatWriteForbidden: pass
     except Exception as e: raise e
     # if res: logger.debug(f"Userbot {phone_number} reacted to {task['postLink']} with [{emojiString}]")
 
