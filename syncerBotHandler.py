@@ -62,7 +62,7 @@ async def messageHandler(_: Client,message:Message):
             f"<b>├─ Emoji's: </b><code>{' '.join(reactionEmojis) or 'None'}</code>"
         )
     if len(tasksArray): 
-        logChannel(text)
+        logChannel(text,printLog=False)
         asyncio.gather(*tasksArray)
         
 async def voiceChatHandler(client:Client, update, users, chats):
@@ -95,7 +95,8 @@ async def voiceChatHandler(client:Client, update, users, chats):
                     f"<b>├─ Delay: </b><code>{voiceRestTimeArray}</code>\n"
                     f"<b>├─ Count: </b><code>{voiceChatJoin}</code>\n"
                     f"<b>├─ Duration: </b><code>{duration}</code>"
-                )
+                ),
+                printLog=False
             )
             asyncio.create_task(UserbotManager.bulk_order(userbots,{
                 "type": "joinVoiceChat",

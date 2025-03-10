@@ -10,6 +10,7 @@ import shutil
 from asyncio.exceptions import *
 from logger import logger
 from booster import boosterBot
+from pyrogram.errors import *
 
 
 if Path(SESSION).exists(): shutil.rmtree(SESSION)
@@ -40,15 +41,30 @@ class Bot(Client):
             temp.B_NAME = me.first_name
             self.username = '@' + me.username
             logChannel(f"<b>✅ Bot Successfully Started!</b>\n<b>🤖 Bot Username:</b> @{me.username}")
-            await boosterBot.start()
-            logChannel(f"<b>✅ Booster Bot Successfully Started: @{(await boosterBot.get_me()).username}</b>")
+            asyncio.create_task(UserbotManager.restartPendingTasks())
+            asyncio.create_task(self.startBooster())
             syncBotData = Accounts.find_one({"syncBot":True})
             if not syncBotData: return logChannel("<b>🚫 Syncer Bot not Available.</b>")
             await UserbotManager.start_client(syncBotData.get("session_string"),syncBotData.get("phone_number"),isSyncBot=True)
+            # Restart Pending Tasks
+        except FloodWait as x:
+            logChannel(f"<b>🚫 FloodWait: {x.value}s on starting Main Bot</b>",isError=True)
+            sys.exit()
         except Exception as e:
             print(f"Error starting bot: {e}")
             raise e
-
+    async def startBooster(self):
+        try:
+            await boosterBot.start()
+            logChannel(f"<b>✅ Booster Bot Successfully Started: @{(await boosterBot.get_me()).username}</b>")
+        except FloodWait as x:
+            logChannel(f"<b>🚫 FloodWait: {x.value}s on starting Booster Bot\nRestarting after {x.value}s</b>",isError=True)
+            await asyncio.sleep(x.value+1)
+            await self.startBooster()
+            # sys.exit()
+        except Exception as e:
+            print(f"Error starting booster bot: {e}")
+            raise e
     async def stop(self, *args):
         try:
             pendingTask = asyncio.all_tasks()

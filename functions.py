@@ -115,7 +115,7 @@ async def joinIfNot(client: Client, chatID, inviteLink):
         return False
 
     
-def logChannel(string,isError=False,keyboard=None):
+def logChannel(string,isError=False,keyboard=None,printLog=True):
     try: 
         if LOGGING_CHANNEL: 
             request = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
@@ -127,8 +127,9 @@ def logChannel(string,isError=False,keyboard=None):
             data = request.json()
             if not data.get("ok"): logger.error(f"Error From Api While Logging To Channel: {data}")
     except Exception as e: logger.error(f"Error While logChannel: {e}")
-    if isError: logger.error(string)
-    else: logger.debug(string)
+    if printLog:
+        if isError: logger.error(string)
+        else: logger.debug(string)
 
 def format_json(json_string):
     try:

@@ -20,6 +20,7 @@ import time
 import unicodedata
 from logger import logger
 from methods import *
+import json
 
 
 class OrderUserbotManager:
@@ -150,7 +151,41 @@ class OrderUserbotManager:
             await asyncio.sleep(self.idle_timeout)
             await self.stop_client(phone_number)
         except: pass
-    
+    async def saveTaskData(self,task,userbots):
+        taskID_2 = generateRandomString(10)
+        task["taskID_2"] = taskID_2
+        userbotsJson = {}
+        for i in userbots: 
+            del i["_id"]
+            del i["added_at"]
+            userbotsJson[i["phone_number"]] = i
+        with open(f"tasksData/{taskID_2}.json","w") as f:
+            f.write(json.dumps({"task":task,"userbots":userbotsJson}))
+        return taskID_2 
+    async def removeUserbotFromTaskData(self,taskID_2,phone_number):
+        with open(f"tasksData/{taskID_2}.json","r") as f:
+            data = json.loads(f.read())
+        del data["userbots"][phone_number]
+        with open(f"tasksData/{taskID_2}.json","w") as f:
+            f.write(json.dumps(data))
+    async def deleteTasksJsonData(self,taskID_2):
+        os.remove(f"tasksData/{taskID_2}.json")
+    async def restartPendingTasks(self):   
+        tasksData = os.listdir("tasksData")
+        for i in tasksData:
+            with open(f"tasksData/{i}","r") as f:
+                data = json.loads(f.read())
+            task = data.get("task",{})
+            userbotsJson = data.get("userbots",{})
+            userbotsArray = [userbotsJson[i] for i in userbotsJson]
+            logChannel((
+                f"🔄 <b>Restarting Pending Task:</b>\n\n"
+                f"🆔 Task ID: <code>{task.get('taskID')}</code>\n"
+                f"🆔 Task ID 2: <code>{task.get('taskID_2')}</code>\n"
+                f"📋 Task Type: <code>{task.get('type')}</code>\n"
+                f"📅 Task Perform Count Left: <code>{len(userbotsArray)}</code>\n"
+            ))
+            await self.bulk_order(userbotsArray,task,isOldPending=True)
     async def process_task_queue(self, phone_number):
         while True:
             if phone_number not in self.task_queues:
@@ -159,6 +194,8 @@ class OrderUserbotManager:
             task = await self.task_queues[phone_number].get()
             if task is None:
                 break
+            taskID_2 = task.get("taskID_2",None)
+            await self.removeUserbotFromTaskData(taskID_2,phone_number)
             taskID = task.get("taskID",None)
             client: Client = self.clients[phone_number]
             if phone_number == self.syncBot.get("phone_number"): continue
@@ -239,13 +276,14 @@ class OrderUserbotManager:
         if not phone_number in self.task_queues: self.task_queues[phone_number] = asyncio.Queue()
         await self.task_queues[phone_number].put(task)
     
-    async def bulk_order(self, userbots, task):
+    async def bulk_order(self, userbots, task,isOldPending=False):
         taskLimit = 0
         tasksGathering = []
         taskPerformCount = random.choice(task["taskPerformCount"]) if isinstance(task["taskPerformCount"],list) else task["taskPerformCount"]
         taskID = generateRandomString(10)
         task["taskID"] = taskID 
         self.tasksData[taskID] = task
+        taskID_2 = task.get("taskID_2",None) if isOldPending else await self.saveTaskData(task,userbots)
         for userbot in userbots:
             if not (taskID in self.tasksData): 
                 logChannel(f"<b>Task Deleted: </b><code>{taskID}</code>")
@@ -256,13 +294,14 @@ class OrderUserbotManager:
             elif isinstance(rest_time,list) and len(rest_time) == 1: rest_time = rest_time[0]
             if rest_time != 0:
                 self.tasksData[taskID]["canStop"] = True
-                logger.debug(f"Resting for {rest_time} seconds before processing task for {userbot["phone_number"]}")
+                # logger.debug(f"Resting for {rest_time} seconds before processing task for {userbot["phone_number"]}")
                 await asyncio.sleep(float(rest_time))
                 await self.add_task(
                     phone_number=userbot["phone_number"],
                     task={
                         **task,
                         "session_string": userbot["session_string"] ,
+                        "taskID_2": taskID_2    
                     },
                 )
             elif rest_time == 0:
@@ -274,8 +313,8 @@ class OrderUserbotManager:
                         "session_string": userbot["session_string"] ,
                     },))
             if taskLimit >= int(taskPerformCount) : break
-        # if taskID in self.tasksData: logChannel(f"Bulk order {task['type']} added for {len(userbots)} userbots.\n\n{format_json(task)}")
         await asyncio.gather(*tasksGathering)
+        await self.deleteTasksJsonData(taskID_2)
         
     async def addHandlersToSyncBot(self,needToJoin=True,client: Client|None = None):
         try:
@@ -336,7 +375,7 @@ class OrderUserbotManager:
                     logChannel(f"SyncBot {phone_number} is Disconnected. Trying to restart...",isError=True)
                     await self.stop_client(phone_number)
                     await self.addHandlersToSyncBot(None)
-                else: logger.info(f"SyncBot {phone_number} is Running.....") 
+                # else: logger.info(f"SyncBot {phone_number} is Running.....") 
             except Exception as e: logger.warning(f"Error While Restarting SyncBot: {str(e)}")
     def getSyncBotClient(self):
         if "client" in self.syncBot: return self.syncBot["client"]
