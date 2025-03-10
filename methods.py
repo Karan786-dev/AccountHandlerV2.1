@@ -134,7 +134,7 @@ async def joinVc(task,client: Client,phone_number,self,taskID):
         await client.join_chat(inviteLink)
         await self.add_task(phone_number,task)
     except UnMuteNeeded: 
-        logger.critical(f"Error: UnmuteNeeded From {phone_number} While Joining Vc In {chatID}",True)
+        print(f"Error: UnmuteNeeded From {phone_number} While Joining Vc In {chatID}",True)
     except (ChatAdminRequired , GroupcallForbidden): 
         if self.tasksData.get(taskID,{}).get("canStop",True):
             logChannel(f"<b>Call Stopped From Channel: </b><code>{chatID}</code><b>  :   </b><code>{taskID}</code>. <b>Stopping Pending Tasks</b>")

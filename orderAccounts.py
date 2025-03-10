@@ -186,7 +186,7 @@ class OrderUserbotManager:
             except (ChannelInvalid,ChannelPrivate,PeerIdInvalid , UserNotParticipant) as e:
                 inviteLink = task.get("inviteLink",None)
                 if not inviteLink:
-                  return logChannel(f"<b>No Any Invite Link Found For </b><code>{task.get("chat_id",None)}</code> \nPlease Remove and Add This channel again")
+                  return logger.warning(f"<b>No Any Invite Link Found For </b><code>{task.get("chat_id",None)}</code> \nPlease Remove and Add This channel again")
                 logChannel(f"<b>{phone_number}</b>: Need to <b><a href='{task.get("inviteLink",None)}'>{task.get('inviteLink')}</a></b> To View.\nError: <code>{e}</code>\n\n Joining and Trying Again....")
                 await joinIfNot(client,None,inviteLink)
                 await self.add_task(phone_number, task)

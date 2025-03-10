@@ -5,13 +5,15 @@ from orderAccounts import UserbotManager
 import asyncio
 from urllib.parse import urlparse
 from functions import *
-from ..responses.responseFunctions import getResponse
+from config import *
+
+boosterBot = Client(SESSION+"/booster",api_id=API_ID,api_hash=API_HASH,bot_token=BOT_TOKEN_BOOSTER)
 
 
-@Client.on_message(filters.text & filters.private)
+
+@boosterBot.on_message(filters.text & filters.private)
 async def onBoosterLink(_:Client,message:Message):
     if not message.text.startswith("https://t.me/c") and not message.text.startswith("https://t.me/"): raise ContinuePropagation()
-    if getResponse(message.from_user.id): raise ContinuePropagation()
     postLink = message.text.replace('/c',"")
     parsed_url = urlparse(postLink)
     path_segments = parsed_url.path.strip("/").split("/")
@@ -55,7 +57,7 @@ async def onBoosterLink(_:Client,message:Message):
     await asyncio.gather(*tasksArray)
     await _.edit_message_text(message.from_user.id,waitingMsg.id,"✅ All Services is <b>completed</b> on this post")
 
-@Client.on_message(filters.forwarded)
+@boosterBot.on_message(filters.forwarded)
 async def onBoosterForward(_:Client,message:Message):
     if not message.forward: raise ContinuePropagation()
     channelID = message.forward_from_chat.id

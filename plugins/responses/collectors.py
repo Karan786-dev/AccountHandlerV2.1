@@ -110,8 +110,8 @@ async def getChannelID(_,message:Message):
     if (not channelLink.startswith('https://t.me/')) and (not channelLink.startswith("@")) : return await message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
     syncBotData = Accounts.find_one({"syncBot":True})
     waitingMsg = await message.reply("<b>SyncBot trying to join channel.......</b>")
-    syncBot = Client(name=syncBotData.get("phone_number"),session_string=syncBotData.get("session_string"))
-    await syncBot.start()
+    syncBot = UserbotManager.getSyncBotClient()
+    if not syncBot: await _.edit_message_text(chat_id=message.from_user.id,message_id=waitingMsg.id,text=f"<b>⚠️ Failed To Join Channel</b>: Sync bot not found.")
     try:
         await syncBot.join_chat(channelLink)
     except Exception as e:
