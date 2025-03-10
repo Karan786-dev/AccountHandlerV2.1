@@ -11,6 +11,7 @@ import re
 from logger import logger
 import string
 import json
+import psutil
 
 timezone = pytz.timezone("Asia/Kolkata") 
 
@@ -29,6 +30,13 @@ def is_number(value):
     return False
 
 
+def get_vps_usage():
+    cpu_usage = psutil.cpu_percent(interval=1)
+    memory_info = psutil.virtual_memory()
+    memory_usage = memory_info.percent
+    disk_info = psutil.disk_usage('/')
+    disk_usage = disk_info.percent
+    return cpu_usage , memory_usage , disk_usage
 
 
 def convertTime(timestamp):
@@ -125,7 +133,8 @@ def logChannel(string,isError=False,keyboard=None,printLog=True):
                                      "reply_markup":json.dumps(keyboard) if keyboard else keyboard
                                     })
             data = request.json()
-            if not data.get("ok"): logger.error(f"Error From Api While Logging To Channel: {data}")
+            if not data.get("ok"): 
+                logger.error(f"Error From Api While Logging To Channel: {data}")
     except Exception as e: logger.error(f"Error While logChannel: {e}")
     if printLog:
         if isError: logger.error(string)

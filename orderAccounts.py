@@ -163,11 +163,15 @@ class OrderUserbotManager:
             f.write(json.dumps({"task":task,"userbots":userbotsJson}))
         return taskID_2 
     async def removeUserbotFromTaskData(self,taskID_2,phone_number):
-        with open(f"tasksData/{taskID_2}.json","r") as f:
-            data = json.loads(f.read())
-        del data["userbots"][phone_number]
-        with open(f"tasksData/{taskID_2}.json","w") as f:
-            f.write(json.dumps(data))
+        try:
+            with open(f"tasksData/{taskID_2}.json","r") as f:
+                data = json.loads(f.read())
+            userbotsJson = data.get("userbots",{})
+            if phone_number in userbotsJson: del userbotsJson[phone_number]
+            with open(f"tasksData/{taskID_2}.json","w") as f:
+                f.write(json.dumps({"task":data.get("task",{}),"userbots":userbotsJson}))
+        except FileNotFoundError: pass
+        except Exception: logger.critical(f"Error While Removing Userbot From Task Data: {phone_number}")
     async def deleteTasksJsonData(self,taskID_2):
         os.remove(f"tasksData/{taskID_2}.json")
     async def restartPendingTasks(self):   
@@ -184,8 +188,8 @@ class OrderUserbotManager:
                 f"🆔 Task ID 2: <code>{task.get('taskID_2')}</code>\n"
                 f"📋 Task Type: <code>{task.get('type')}</code>\n"
                 f"📅 Task Perform Count Left: <code>{len(userbotsArray)}</code>\n"
-            ))
-            await self.bulk_order(userbotsArray,task,isOldPending=True)
+            ),printLog=False)
+            asyncio.create_task(self.bulk_order(userbotsArray,task,isOldPending=True))
     async def process_task_queue(self, phone_number):
         while True:
             if phone_number not in self.task_queues:
@@ -251,6 +255,9 @@ class OrderUserbotManager:
                 logChannel(f"Account [{phone_number}]: Banned")
                 await self.stop_client(phone_number)
                 Accounts.delete_one({"phone_number":str(phone_number)})
+            except FloodWait as e:
+                await asyncio.sleep(e.x)
+                await self.add_task(phone_number,task)
             except Exception as e: 
                 if "closed database" in str(e): 
                     logChannel(f"Closed Database Error: {phone_number}. Restarting...")

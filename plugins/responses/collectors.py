@@ -379,7 +379,7 @@ async def notifyChangeDurationHandler(_:Client,query:CallbackQuery):
         "type":"changeNotifyChannel",
         "chatID": responseData.get("channelID"),
         "restTime":responseData.get("speed"),
-        "taskPerformCount": int(responseData.get("notifyChangeCount")),
+        "taskPerformCount": responseData.get("notifyChangeCount"),
         "inviteLink":responseData.get("inviteLink"),
         "duration": int(duration)
     })
