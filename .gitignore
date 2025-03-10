@@ -5,3 +5,4 @@ venv/
 config.py
 proxies.txt
 .vscode
+tasksData/

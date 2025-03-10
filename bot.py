@@ -11,6 +11,7 @@ from asyncio.exceptions import *
 from logger import logger
 from booster import boosterBot
 from pyrogram.errors import *
+import os
 
 
 if Path(SESSION).exists(): shutil.rmtree(SESSION)
@@ -18,6 +19,8 @@ if Path(USERBOT_SESSION).exists(): shutil.rmtree(USERBOT_SESSION)
     
 Path(SESSION).mkdir(exist_ok=True,parents=True)
 Path(USERBOT_SESSION).mkdir(exist_ok=True,parents=True)
+
+if not os.path.exists("tasksData"): os.mkdir("tasksData")
 
 
 class Bot(Client):
