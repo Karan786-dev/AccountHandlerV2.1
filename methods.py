@@ -4,6 +4,7 @@ from config import USERBOT_SESSION
 import asyncio 
 from pytgcalls import PyTgCalls 
 from pytgcalls.exceptions import *
+from pytgcalls.types import MediaStream
 from threading import Timer
 from urllib.parse import urlparse
 import random
@@ -21,7 +22,7 @@ import unicodedata
 from logger import logger
 
 async def viewPost(task,client: Client,phone_number,self,taskID):
-    postLink = task["postLink"].replace("/c","")
+    postLink = task["postLink"].replace("/c/","/")
     parsed_url = urlparse(postLink)
     path_segments = parsed_url.path.strip("/").split("/")
     chatID = str(path_segments[0])
@@ -77,7 +78,7 @@ async def sendMessage(task,client: Client,phone_number,self,taskID):
     logger.debug(f"Message Delivered By: {phone_number}")
 
 async def reactPost(task,client: Client,phone_number,self,taskID):
-    postLink = task["postLink"].replace("/c","")
+    postLink = task["postLink"].replace("/c/","/")
     parsed_url = urlparse(postLink)
     path_segments = parsed_url.path.strip("/").split("/")
     chatID = str(path_segments[0])
@@ -119,7 +120,9 @@ async def joinVc(task,client: Client,phone_number,self,taskID):
     try:
         app = PyTgCalls(client)
         await app.start()
-        await app.play(chat_id=chatID)
+        await app.play(
+            chat_id=chatID,
+        )
         logger.debug(f"{phone_number} joined the voice call and will leave after {finalDuration if finalDuration else "INFINITY"}s")
         if finalDuration:
             def leaveVc():
