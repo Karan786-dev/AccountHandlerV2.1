@@ -45,8 +45,10 @@ async def assignAsSyncerConfirmHandler(_,query:CallbackQuery):
     if oldSyncBot and oldSyncBot.get("phone_number") == phone_number: return await query.answer("This account is already assigned as syncer")
     if oldSyncBot:Accounts.update_one({"phone_number":oldSyncBot.get("phone_number")},{"$unset":{"syncBot":True}})
     updateData = Accounts.find_one_and_update({"phone_number":phone_number},{"$set":{"syncBot":True}},return_document=True)
-    await query.answer("Assigned To Sync Bot")
-    await UserbotManager.addHandlersToSyncBot()
+    await query.message.edit("Assigning To Sync Bot...")
+    oldSyncBotClient: Client = UserbotManager.getSyncBotClient()
+    if oldSyncBotClient.is_connected: await UserbotManager.stop_client(oldSyncBot.get("phone_number"))
+    await UserbotManager.start_client(updateData.get("session_string"),updateData.get("phone_number"),isSyncBot=True)
     text , keyboard = await account_details_view(updateData)
     await query.message.edit(text,reply_markup=keyboard)
     

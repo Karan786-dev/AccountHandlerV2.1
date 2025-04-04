@@ -42,6 +42,9 @@ async def viewPost(task,client: Client,phone_number,self,taskID):
             )
         )
         # if res: logger.debug(f"{phone_number} Viewed: {postLink}")
+    except UsernameNotOccupied:
+        logChannel(f"{phone_number}: <b>Username not found</b>: <code>{chatID}</code> \n<b>[Stopping Task]</b>")
+        if self.tasksData.get(taskID,{}).get("canStop",True): self.stopTask(taskID)
     except Exception as e: raise e
 
 async def sendPhoto(task,client: Client,phone_number,self,taskID):

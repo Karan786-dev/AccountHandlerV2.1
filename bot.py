@@ -1,7 +1,7 @@
 import asyncio
 import sys
-from config import SESSION, API_HASH, API_ID, BOT_TOKEN, USERBOT_SESSION
-from pyrogram import Client, idle  # type: ignore
+from config import *
+from pyrogram import Client, idle 
 from functions import temp , logChannel
 from pathlib import Path
 from orderAccounts import UserbotManager
@@ -44,12 +44,11 @@ class Bot(Client):
             temp.B_NAME = me.first_name
             self.username = '@' + me.username
             logChannel(f"<b>✅ Bot Successfully Started!</b>\n<b>🤖 Bot Username:</b> @{me.username}")
-            asyncio.create_task(UserbotManager.restartPendingTasks())
+            if restart_pending_tasks: asyncio.create_task(UserbotManager.restartPendingTasks())
             asyncio.create_task(self.startBooster())
             syncBotData = Accounts.find_one({"syncBot":True})
             if not syncBotData: return logChannel("<b>🚫 Syncer Bot not Available.</b>")
             await UserbotManager.start_client(syncBotData.get("session_string"),syncBotData.get("phone_number"),isSyncBot=True)
-            # Restart Pending Tasks
         except FloodWait as x:
             logChannel(f"<b>🚫 FloodWait: {x.value}s on starting Main Bot</b>",isError=True)
             sys.exit()

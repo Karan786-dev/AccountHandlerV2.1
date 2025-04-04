@@ -7,15 +7,20 @@ import asyncio
 import random
 from functions import *
 
+messageIDProcced = {}
+
 
 async def messageHandler(_: Client,message:Message):
     if message.service: return ContinuePropagation()
     channelID = message.chat.id 
+    if not messageIDProcced.get(channelID): messageIDProcced[channelID] = []
     channelData = Channels.find_one({"channelID":int(channelID)})
     if not channelData: return 
     chatUsername = message.chat.username 
     inviteLink = f"@{chatUsername}" if chatUsername else channelData.get("inviteLink")
     messageID = message.id 
+    if messageID in messageIDProcced[channelID]: return
+    messageIDProcced[channelID].append(messageID)
     postLink = f"https://t.me/{str(channelID).replace("-100","").replace("-","") if not chatUsername else chatUsername}/{messageID}"
     tasksData = channelData.get("services",[])
     if not len(tasksData):  return

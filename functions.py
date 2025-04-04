@@ -134,6 +134,9 @@ def logChannel(string,isError=False,keyboard=None,printLog=True):
                                     })
             data = request.json()
             if not data.get("ok"): 
+                params = data.get("parameters")
+                if params and params.get("retry_after"):
+                    return
                 logger.error(f"Error From Api While Logging To Channel: {data}")
     except Exception as e: logger.error(f"Error While logChannel: {e}")
     if printLog:

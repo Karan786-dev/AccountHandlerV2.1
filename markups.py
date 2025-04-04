@@ -58,6 +58,9 @@ def adminPanel(fromUser):
             InlineKeyboardButton("📋 Telegram Accounts", callback_data="/manageAccountAdmin"),
             InlineKeyboardButton("📡 Manage Channels", callback_data="/manageChannels")
         ],
+        [
+            InlineKeyboardButton("📊 Daily Activity","/manageDailyActivity")
+        ]
     ])
     return text, keyboard
 
