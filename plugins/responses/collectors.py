@@ -2,7 +2,7 @@ from pyrogram import Client , filters , ContinuePropagation
 from pyrogram.types import Message , InlineKeyboardMarkup , InlineKeyboardButton , CallbackQuery  , Chat , ReplyKeyboardRemove
 from .responseFunctions import *
 from config import *
-from database import Accounts , Channels , Users
+from database import Accounts , Channels , Users , ActivityChannels
 from datetime import datetime
 from functions import *
 from markups import *
@@ -103,7 +103,7 @@ async def manuallyChangeAutoServiceCount(_,message:Message):
 
 #Add a channel
 @Client.on_message(filters.private)
-async def getChannelID(_,message:Message):
+async def getChannelIDtoAdd(_,message:Message):
     if not checkIfTarget(message.from_user.id,"addChannelLink"): raise ContinuePropagation()
     channelLink = message.text 
     deleteResponse(message.from_user.id)
@@ -137,6 +137,39 @@ async def getChannelID(_,message:Message):
     text , keyboard = await viewChannelManage(channelID)
     await message.reply(text,reply_markup=keyboard)
     
+@Client.on_message(filters.private)
+async def ActivityChannelIDResponse(_: Client,message: Message):
+    if not checkIfTarget(message.from_user.id,"addChannelActivityLink"): raise ContinuePropagation()
+    channelLink = message.text 
+    deleteResponse(message.from_user.id)
+    if (not channelLink.startswith('https://t.me/')) and (not channelLink.startswith("@")) : return await message.reply("<b>⚠️ Invalid input:  Please enter a valid value</b>")
+    syncBotData = Accounts.find_one({"syncBot":True})
+    waitingMsg = await message.reply("<b>SyncBot trying to join channel.......</b>")
+    syncBot = UserbotManager.getSyncBotClient()
+    if not syncBot: await _.edit_message_text(chat_id=message.from_user.id,message_id=waitingMsg.id,text=f"<b>⚠️ Failed To Join Channel</b>: Sync bot not found.")
+    try:
+        await syncBot.join_chat(channelLink)
+    except Exception as e:
+        if not "[400 USER_ALREADY_PARTICIPANT]" in str(e):
+            await _.edit_message_text(chat_id=message.from_user.id,message_id=waitingMsg.id,text=f"<b>⚠️ Failed To Join Channel</b>: {str(e)}")
+            raise e
+    channelData = await syncBot.get_chat(channelLink)
+    channelID = channelData.id
+    if ActivityChannels.find_one({"channelID":channelID}): return await  _.edit_message_text(message.from_user.id,waitingMsg.id,"<b>⚠️ This Channel already exists in database</b>")
+    if channelData.username:channelType = "public" 
+    else:channelType = "private"
+    username = channelData.username or None 
+    channelTitle = channelData.title
+    ActivityChannels.insert_one({
+        "channelID":channelID,
+        "title": channelTitle,
+        "username": username,
+        "type": channelType,
+        "inviteLink": channelLink if not channelLink.startswith("@") else channelLink.replace("@","https://t.me/")
+    })
+    await _.edit_message_text(chat_id=message.from_user.id,message_id=waitingMsg.id,text="<b>Channel Added Into Database</b>")
+    text , keyboard = await viewChannelActivity(channelID)
+    await message.reply(text,reply_markup=keyboard)
 
 
 #Dynamic Task Settings

@@ -1,5 +1,5 @@
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup , Reaction
-from database import Channels, Admin, Accounts
+from database import Channels, Admin, Accounts , ActivityChannels
 from orderAccounts import UserbotManager
 from functions import convertTime, paginateArray
 from pyrogram import Client
@@ -59,7 +59,7 @@ def adminPanel(fromUser):
             InlineKeyboardButton("📡 Manage Channels", callback_data="/manageChannels")
         ],
         [
-            InlineKeyboardButton("📊 Daily Activity","/manageDailyActivity")
+            InlineKeyboardButton("📊 Daily Activity","/DailyActivityChannels")
         ]
     ])
     return text, keyboard
@@ -199,8 +199,85 @@ async def manageChannelMarkup(page: int = 1, per_page: int = 5):
     )
 
     return text, keyboard
+
+async def manageChannelActivityMarkup(page: int = 1, per_page: int = 5):
+    allChannels = list(ActivityChannels.find({})) or []
+    totalChannels = len(allChannels)
+    
+    backButton = InlineKeyboardButton("🔙 Back", callback_data="admin")
+    addChannelButton = InlineKeyboardButton("➕ Add Channel", callback_data="/ChannelActivityAdd")
+
+    if totalChannels == 0:
+        text = "<b>🚫 No channels added yet.\nUse the button below to add new channels.</b>"
+        keyboard = InlineKeyboardMarkup([[addChannelButton], [backButton]])
+        return text, keyboard
+
+    start = (page - 1) * per_page
+    end = start + per_page
+    channelsToDisplay = allChannels[start:end]
+    total_pages = (totalChannels + per_page - 1) // per_page 
+
+    text = f"<b>Manage Channels Daily Activities </b>(Page {page}/{total_pages}):\n<b>Select a Channel</b> from the list below:\n"
+    
+    keyboard_buttons = [
+        [InlineKeyboardButton(f"{i}. {channelData.get('title') or channelData.get('channelID')}", 
+                              callback_data=f"/ChannelActivityView {channelData.get('channelID')}")]
+        for i, channelData in enumerate(channelsToDisplay, start=start + 1)
+    ]
+
+    navigation_buttons = []
+    if page > 1:
+        navigation_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"/DailyActivityChannels {page - 1}"))
+    if page < total_pages:
+        navigation_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"/DailyActivityChannels {page + 1}"))
+
+    keyboard = InlineKeyboardMarkup(
+        keyboard_buttons + 
+        ([navigation_buttons] if navigation_buttons else []) + 
+        [[addChannelButton, backButton]]
+    )
+
+    return text, keyboard
       
-        
+async def viewChannelActivity(channelID: int, channelData=0):
+    channelData = channelData or ActivityChannels.find_one({"channelID": channelID})
+    if not channelData:
+        return "❌ <b>Error: Channel not found!</b>", InlineKeyboardMarkup(
+            [[InlineKeyboardButton("🔙 Back", callback_data="/DailyActivityChannels 1")]]
+        )
+    channelType = channelData.get('type', 'Unknown')
+    channelLink = channelData.get('inviteLink', 'No invite link')
+    channelUsername = channelData.get("username")
+    channelTitle = channelData.get('title', 'Untitled Channel')
+    maxJoinDelay = channelData.get("maxJoinDelay", 0)
+    minJoinDelay = channelData.get("minJoinDelay", 0)
+    maxLeaveDelay = channelData.get("maxLeaveDelay", 0)
+    minLeaveDelay = channelData.get("minLeaveDelay", 0)
+    muteProbability = channelData.get("muteProbability", 0)
+    
+    text = (
+        f"📢 <b>Channel Activity Details</b>\n"
+        f"<b>Title:</b> <code>{channelTitle}</code>\n"
+        f"<b>Invite Link:</b> <a href='{channelLink}'>{channelLink}</a>\n"
+        f"<b>Status:</b> <code>{'✅ Enabled' if channelData.get('activityStatus', False) else '❎ Disabled'}\n\n</code>"
+        f"<b>Join Delay:</b> <code>{minJoinDelay} - {maxJoinDelay}</code>\n"
+        f"<b>Leave Delay:</b> <code>{minLeaveDelay} - {maxLeaveDelay}</code>\n\n"
+        f"<b>Mute Probability:</b> <code>{muteProbability}%</code>\n"
+    )
+    
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("✅ Enable" if not channelData.get("activityStatus", False) else "❎ Disable", callback_data=f"/ChannelActivityToggle {channelID}")],
+            [InlineKeyboardButton("Join Delay", callback_data=f"nothing")],
+            [InlineKeyboardButton("⏳ Min", callback_data=f"/changeMinJoinDelay {channelID}"),InlineKeyboardButton("⏳ Max", callback_data=f"/changeMaxJoinDelay {channelID}")],
+            [InlineKeyboardButton("Leave Delay", callback_data=f"nothing")],
+            [InlineKeyboardButton("⏳ Min", callback_data=f"/changeMinLeaveDelay {channelID}"),InlineKeyboardButton("⏳ Max", callback_data=f"/changeMaxLeaveDelay {channelID}")],
+            [InlineKeyboardButton("🔕 Mute Probability", callback_data=f"/changeMuteProbability {channelID}")],
+            [InlineKeyboardButton("🗑 Remove Channel", callback_data=f"/removeChannel {channelID}")],
+            [InlineKeyboardButton("<- Back", callback_data="/DailyActivityChannels 1")],
+        ]
+    )
+    return text , keyboard
         
 async def viewChannelManage(channelID, channelData=0):
     channelData = channelData or Channels.find_one({"channelID": channelID})

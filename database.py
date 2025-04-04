@@ -10,5 +10,6 @@ try:
     Accounts = mydb['accounts']
     Transactions = mydb["Transactions"]
     Channels = mydb["channels"]
+    ActivityChannels = mydb["activity_channels"]
 except Exception as e:
     print("Error connecting to MongoDB: ", e)

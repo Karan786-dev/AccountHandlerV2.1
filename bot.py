@@ -11,6 +11,7 @@ from asyncio.exceptions import *
 from logger import logger
 from booster import boosterBot
 from pyrogram.errors import *
+from dailyActivity import *
 import os
 
 
@@ -45,6 +46,8 @@ class Bot(Client):
             self.username = '@' + me.username
             logChannel(f"<b>✅ Bot Successfully Started!</b>\n<b>🤖 Bot Username:</b> @{me.username}")
             if restart_pending_tasks: asyncio.create_task(UserbotManager.restartPendingTasks())
+            if restart_pending_activity_tasks: asyncio.create_task(restart_pendingLeaves())
+            asyncio.create_task(startRandomActivityInChannels())
             asyncio.create_task(self.startBooster())
             syncBotData = Accounts.find_one({"syncBot":True})
             if not syncBotData: return logChannel("<b>🚫 Syncer Bot not Available.</b>")

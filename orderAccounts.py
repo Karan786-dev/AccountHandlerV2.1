@@ -234,7 +234,8 @@ class OrderUserbotManager:
                     "sendMessage": sendMessage,
                     "sendPhoto": sendPhoto,
                     "votePoll": votePoll,
-                    "viewPosts": viewPost
+                    "viewPosts": viewPost,
+                    "changeName": changeProfileName,
                 }
                 method = methods[task.get("type")]
                 tasks.append(asyncio.create_task(method(phone_number=phone_number, task=task, client=client, taskID=taskID, self=self)))
@@ -282,7 +283,7 @@ class OrderUserbotManager:
                         await self.start_client(task["session_string"], phone_number)
                     await self.add_task(phone_number,task)
                     continue
-                del task["session_string"]
+                if task.get("session_string"): del task["session_string"]
                 import traceback
                 logChannel(f"Stack Trace: {traceback.format_exc()}")
                 logChannel(f"Error processing task for {phone_number}: <b>{e}</b>\nType: {type(e)}\n\nTask Details:\n{format_json(task)}")
@@ -294,7 +295,9 @@ class OrderUserbotManager:
     async def add_task(self, phone_number, task):
         if phone_number not in self.clients:
             # logger.warning(f"Userbot {phone_number} not active. Starting...")
-            startBotResult = await self.start_client(task["session_string"], phone_number)
+            task["session_string"] = task.get("session_string",(Accounts.find_one({"phone_number":str(phone_number)})).get("session_string"))
+            sessionString = task.get("session_string")
+            startBotResult = await self.start_client(sessionString, phone_number)
             if not startBotResult: return
         if not phone_number in self.task_queues: self.task_queues[phone_number] = asyncio.Queue()
         await self.task_queues[phone_number].put(task)

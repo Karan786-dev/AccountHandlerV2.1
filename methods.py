@@ -217,3 +217,12 @@ async def mute_unmute(task,client: Client,phone_number,self,taskID):
             )
             if res:logger.debug(f"{phone_number} {"Muted" if duration else "Unmuted"} {chatID}")
     except Exception as err: raise err
+
+
+async def changeProfileName(task,client: Client,phone_number,self,taskID):
+    try:
+        firstName = task["firstName"]
+        lastName = task.get("lastName","")
+        await client.update_profile(first_name=firstName,last_name=lastName)
+        logger.debug(f"Userbot {phone_number} changed name to {firstName}")
+    except Exception as e: raise e
