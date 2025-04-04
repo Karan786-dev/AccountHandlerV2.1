@@ -2,7 +2,6 @@ __pycache__/
 sessions/
 test.py
 venv/
-config.py
 proxies.txt
 .vscode
 tasksData/
