@@ -4,4 +4,5 @@ test.py
 venv/
 proxies.txt
 .vscode
+config.py
 tasksData/
