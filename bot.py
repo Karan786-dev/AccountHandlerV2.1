@@ -161,6 +161,9 @@ async def changeAllAccountsName():
         )
         Accounts.update_one({"phone_number":i.get("phone_number")},{"$set":{"name":newName}})
 
+
+
+
 try:
     app = Bot()
     app.run()

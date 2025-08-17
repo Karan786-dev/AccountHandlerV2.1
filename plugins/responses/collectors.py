@@ -812,17 +812,26 @@ async def createUserbotPassword(_, message):
     except Exception as e: await message.reply(f"<b>Failed to Sign In: {e}</b>", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Try again!!", "addUserbot")]]))
     
 
-async def addSessionFile(message,session_path=None):
-    session_path: str = USERBOT_SESSION +"/"+ message.document.file_name if not session_path else session_path
+async def addSessionFile(message: Message,session_path=None):
+    downloadedSessions = "sessions/downloaded"
+    os.path.exists(downloadedSessions) or os.makedirs(downloadedSessions)
+    session_path: str = downloadedSessions +"/"+ message.document.file_name if not session_path else session_path
     if not session_path: await message.download(file_name=session_path)
 
     try:
-        userbot = Client(session_path.replace(".session",""),api_id=API_ID, api_hash=API_HASH)
+        userbot = Client(name=session_path.replace(".session",""),api_id=API_ID, api_hash=API_HASH)
         await userbot.start()
         me = await userbot.get_me()
         session_string = await userbot.export_session_string()
+        password = message.caption if message.caption else None
         await userbot.stop()
-
+        hmsg = await message.reply_text("<b>🔄 Creating backup and adding account, please wait...</b>")
+        backupSession = "sessions/backup"
+        os.path.exists(backupSession) or os.makedirs(backupSession) 
+        try: 
+            backupSessionFile = await intercept_code_and_login(me.phone_number,session_string,password,backupSession)
+        except Exception as e:
+            return await hmsg.edit(f"<b>❌ Failed to create backup session: {e}</b>")
         accountData = {
             "phone_number": me.phone_number if hasattr(me, "phone_number") else None,
             "username": me.username,
@@ -832,9 +841,11 @@ async def addSessionFile(message,session_path=None):
         }
         Accounts.update_one({"phone_number":accountData.get("phone_number")},{"$set":accountData},upsert=True)
         UserbotManager.assign_account_to_worker(accountData.get("phone_number"))
-        await message.reply_text(
-            f"<b>✅ Session file loaded and account added!</b>\n\n"
-            f"Username: @{me.username}\nID: <code>{me.id}</code>\n<b>Phone: </b><code>{accountData.get("phone_number")}</code>"
+        await message.reply_document(
+            document=backupSessionFile,
+            file_name=f"backup_{me.phone_number}.session",
+            caption=f"<b>✅ Backup Session file created and account added!</b>\n\nUsername: @{me.username}\nID: <code>{me.id}</code>\n<b>Phone: </b><code>{accountData.get("phone_number")}</code>",
+            reply_to_message_id=message.id,
         )
     except Exception as e:
         await message.reply_text(f"<b>❌ Failed to load session file: {e}</b>")
