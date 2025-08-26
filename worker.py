@@ -27,14 +27,15 @@ class Worker:
         try:
             accountData = self.accountData
             await self.client.start()
+            # logger.debug(f"[{self.phone_number}]: Started")
             safe_create_task(self.monitor_tasks())
             # if not accountData.get("syncBot", False) and not accountData.get("helperBot", False): asyncio.create_task(cleanup(self.client,self.phone_number))
-        except (AuthKeyUnregistered,SessionRevoked) as e:
-            logger.error(f"Account Removed: {self.phone_number} Please login again: {str(e)}")
+        except (AuthKeyUnregistered,SessionRevoked,AuthKeyDuplicated) as e:
+            await logChannel(f"Account Removed: {self.phone_number} Please login again: {str(e)}")
             Accounts.delete_one({"phone_number":str(self.phone_number)})
             await self.stop()
         except (UserDeactivated,UserDeactivatedBan):
-            logger.error(f"Account [{self.phone_number}]: Banned")
+            await logChannel(f"Account [{self.phone_number}]: Banned")
             Accounts.delete_one({"phone_number":str(self.phone_number)})
             await self.stop()
         except SessionPasswordNeeded: 
@@ -45,6 +46,7 @@ class Worker:
             await self.client.start()
         except Exception as e:
             logger.error(f"[{self.phone_number}] Failed to connect: {e}")
+            raise e
 
     async def stop(self):
         try:
@@ -108,6 +110,7 @@ class Worker:
                     if not content.strip():
                         continue
                     task = json.loads(content)
+                    # logger.debug(f"[{self.phone_number}]: {file}")
                     safe_create_task(self.add_task(task, path))
                     try: os.remove(path)
                     except FileNotFoundError: pass
@@ -163,7 +166,7 @@ class Worker:
                 except: pass
         except (UserAlreadyParticipant,MessageIdInvalid,InviteRequestSent): pass
         except FloodWait as e:
-            logger.error(f"[{phone_number}]: Flood wait [{e.value}s]")
+            # logger.error(f"[{phone_number}]: Flood wait [{e.value}s]")
             await asyncio.sleep(e.value)
             await self.add_task(task, taskFile)
         except Flood as err:
@@ -230,11 +233,13 @@ async def load_worker(worker_id):
         while True:
             try:
                 for fname in os.listdir(queue_path):
+                    if worker_id == "worker_0": os.listdir(queue_path)
                     if not fname.endswith(".json"): continue
                     full_path = os.path.join(queue_path, fname)
                     with open(full_path) as f:
                         data = json.load(f)
                     phone = data.get("phone_number")
+
                     acc_file = os.path.join(ACCOUNT_FOLDER, phone, "account.json")
                     if os.path.exists(acc_file):
                         with open(acc_file) as af:
@@ -249,6 +254,7 @@ async def load_worker(worker_id):
                 logger.error(f"[Worker:{worker_id}] Queue watch error: {e}")
             await asyncio.sleep(2)
 
+    
     safe_create_task(watch_queue())
     await asyncio.Event().wait()
 

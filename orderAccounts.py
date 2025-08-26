@@ -43,36 +43,7 @@ class OrderUserbotManager:
         self.processes = []
         self.workers = {}
     
-    def start_worker_processes2(self):
-        allAccounts = Accounts.find({"$or":[{"syncBot":{"$exists":False}},{"syncBot":False}]})
-        phone_numbers = [account.get("phone_number") for account in allAccounts]
-        total_accounts = len(phone_numbers)
-        total_workers = math.ceil(total_accounts / MAX_ACCOUNTS_PER_PROCESS)
-
-        print(f"[Manager] Found {total_accounts} accounts. Spawning {total_workers} workers...")
-        processes = []
-
-        for i in range(total_workers):
-            chunk = phone_numbers[i * MAX_ACCOUNTS_PER_PROCESS : (i + 1) * MAX_ACCOUNTS_PER_PROCESS]
-            for phone_number in chunk:
-                print(f"[Manager] Starting worker for {phone_number}")
-                accountData = Accounts.find_one({"phone_number": phone_number})
-                del accountData["_id"]  
-                del accountData["added_at"]
-                if not accountData:
-                    logger.error(f"Account with phone number {phone_number} not found in database.")
-                    continue
-                Path(ACCOUNT_FOLDER+f"/{phone_number}").mkdir(exist_ok=True, parents=True)
-                with open(ACCOUNT_FOLDER+f"/{phone_number}/account.json", "w") as f:
-                    json.dump(accountData, f, indent=4)
-                    f.close()
-            print(f"[Manager] Starting worker for accounts: {len(chunk)}")
-            p = subprocess.Popen(["python3", "worker.py"] + chunk, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            processes.append(p)
-            self.processes.append(p)
-
-        print("[Manager] All worker processes started.")
-                
+               
     def start_worker_processes(self):
         os.makedirs("workers", exist_ok=True)
         allAccounts = Accounts.find({"$or": [{"syncBot": {"$ne": True}}, {"helperBot": {"$ne": True}}]})
@@ -81,9 +52,8 @@ class OrderUserbotManager:
         logger.info("[Manager] All worker processes handled.")
 
 
-    def assign_account_to_worker(self, phone_number):
+    def assign_account_to_worker(self, phone_number: str):
         os.makedirs(WORKERS_DIR, exist_ok=True)
-
         # Look for a worker with space
         for worker_id in os.listdir(WORKERS_DIR):
             folder = os.path.join(WORKERS_DIR, worker_id)

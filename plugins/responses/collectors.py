@@ -9,6 +9,7 @@ from orderAccounts import UserbotManager
 from pyrogram.errors import *
 from functions import * 
 import re 
+import shutil
 import asyncio
 
 #Cancel Button 
@@ -746,18 +747,17 @@ async def createUserbotPhoneNumber(_, message):
         await message.reply(f"<b>Failed to Connect: {e}</b>", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Try again!!", "addUserbot")]]))
 
 @Client.on_message(filters.private)
-async def createUserbotCode(_, message):
+async def createUserbotCode(_, message: Message):
     if not checkIfTarget(message.from_user.id, "createUserbot_code"):
         raise ContinuePropagation
     phone_number = getResponse(message.from_user.id)["payload"]["phone_number"]
     phone_code_hash = getResponse(message.from_user.id)["payload"]["phone_code_hash"]
-    userbotClient = getResponse(message.from_user.id)["payload"]["client"]
+    userbotClient: Client = getResponse(message.from_user.id)["payload"]["client"]
     code = message.text
     try:
         await userbotClient.sign_in(phone_number=phone_number,phone_code=code,phone_code_hash=phone_code_hash)
         sessionString = await userbotClient.export_session_string()
         deleteResponse(message.from_user.id)
-        await message.reply("<b>✅ Account Authenticated Successfully</b>",reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]))
         botInfoFromTg = await userbotClient.get_me()
         accountData = {
             "phone_number": phone_number,
@@ -766,11 +766,26 @@ async def createUserbotCode(_, message):
         }
         accountData["username"] = botInfoFromTg.username if botInfoFromTg.username else None
         Accounts.insert_one(accountData)
-        await userbotClient.disconnect()
-        accountDetails = Accounts.find_one({"phone_number": phone_number})
-        text, keyboard = await account_details_view(accountDetails)
-        await message.reply(text, reply_markup=keyboard)
+        hmsg = await message.reply_text(
+            text="<b>🔄 Account Added to database. Please wait for backup session file...</b>",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]),
+            reply_to_message_id=message.id
+        )
+        if userbotClient.is_connected: await userbotClient.disconnect()
+        backupSession = await intercept_code_and_login(phone=phone_number,existing_session_string=sessionString,password=None,SESSION_DIR="sessions/backup")
+        await message.reply_document(
+            document=backupSession,
+            file_name=f"backup_{phone_number}.session",
+            caption="<b>✅ Account Authenticated Successfully</b>",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]),
+            reply_to_message_id=message.id
+        )
         UserbotManager.assign_account_to_worker(accountData.get("phone_number"))
+        await hmsg.delete()
+        originalBackupFolder = "sessions/realBackup"
+        os.makedirs(originalBackupFolder,exist_ok=True)
+        dst = f"{originalBackupFolder}/{phone_number.replace('+','')}.session"
+        os.replace(backupSession, dst)
     except PhoneCodeInvalid:
         await message.reply("<b>⚠️ Invalid Code:  Please enter a valid code</b>")
     except PhoneCodeExpired:
@@ -783,7 +798,7 @@ async def createUserbotCode(_, message):
         raise e
     
 @Client.on_message(filters.private)
-async def createUserbotPassword(_, message):
+async def createUserbotPassword(_, message: Message):
     if not checkIfTarget(message.from_user.id, "createUserbot_password"):
         raise ContinuePropagation
     phone_number = getResponse(message.from_user.id)["payload"]["phone_number"]
@@ -794,7 +809,6 @@ async def createUserbotPassword(_, message):
         await userbotClient.check_password(password)
         sessionString = await userbotClient.export_session_string()
         deleteResponse(message.from_user.id)
-        await message.reply("<b>✅ Account Authenticated Successfully</b>",reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]))
         botInfoFromTg = await userbotClient.get_me()
         accountData = {
             "phone_number": phone_number,
@@ -804,11 +818,26 @@ async def createUserbotPassword(_, message):
         }
         accountData["username"] = botInfoFromTg.username if botInfoFromTg.username else None
         Accounts.insert_one(accountData)
-        await userbotClient.disconnect()
-        accountDetails = Accounts.find_one({"phone_number": phone_number})
-        text, keyboard = await account_details_view(accountDetails)
-        await message.reply(text, reply_markup=keyboard)
+        if userbotClient.is_connected: await userbotClient.disconnect()
+        hmsg = await message.reply_text(
+            text="<b>🔄 Account Added to database. Please wait for backup session file...</b>",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]),
+            reply_to_message_id=message.id
+        )
+        backupSession = await intercept_code_and_login(phone_number,sessionString,password,"sessions/backup")
+        await message.reply_document(
+            document=backupSession,
+            file_name=f"backup_{phone_number}.session",
+            caption="<b>✅ Account Authenticated Successfully</b>",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]),
+            reply_to_message_id=message.id
+        )
         UserbotManager.assign_account_to_worker(accountData.get("phone_number"))
+        await hmsg.delete()
+        originalBackupFolder = "sessions/realBackup"
+        os.makedirs(originalBackupFolder,exist_ok=True)
+        dst = f"{originalBackupFolder}/{phone_number.replace('+','')}.session"
+        os.replace(backupSession, dst)
     except Exception as e: await message.reply(f"<b>Failed to Sign In: {e}</b>", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Try again!!", "addUserbot")]]))
     
 
@@ -816,15 +845,17 @@ async def addSessionFile(message: Message,session_path=None):
     downloadedSessions = "sessions/downloaded"
     os.path.exists(downloadedSessions) or os.makedirs(downloadedSessions)
     session_path: str = downloadedSessions +"/"+ message.document.file_name if not session_path else session_path
-    if not session_path: await message.download(file_name=session_path)
+    if not os.path.exists(session_path): 
+        resu = await message.download(file_name=session_path)
+        print(f"Downlaoded file in {resu}")
 
     try:
         userbot = Client(name=session_path.replace(".session",""),api_id=API_ID, api_hash=API_HASH)
-        await userbot.start()
+        await userbot.connect()
         me = await userbot.get_me()
         session_string = await userbot.export_session_string()
         password = message.caption if message.caption else None
-        await userbot.stop()
+        await userbot.disconnect()
         hmsg = await message.reply_text("<b>🔄 Creating backup and adding account, please wait...</b>")
         backupSession = "sessions/backup"
         os.path.exists(backupSession) or os.makedirs(backupSession) 
@@ -847,8 +878,15 @@ async def addSessionFile(message: Message,session_path=None):
             caption=f"<b>✅ Backup Session file created and account added!</b>\n\nUsername: @{me.username}\nID: <code>{me.id}</code>\n<b>Phone: </b><code>{accountData.get("phone_number")}</code>",
             reply_to_message_id=message.id,
         )
+        await hmsg.delete()
+        originalBackupFolder = "sessions/realBackup"
+        os.makedirs(originalBackupFolder,exist_ok=True)
+        dst = f"{originalBackupFolder}/{me.phone_number.replace('+','')}.session"
+        os.replace(backupSessionFile, dst)
+        os.replace(session_path,f"{USERBOT_SESSION}/{me.phone_number.replace("+","")}.session")
     except Exception as e:
-        await message.reply_text(f"<b>❌ Failed to load session file: {e}</b>")
+        await message.reply_text(f"<b>❌ Failed to load session file: {e}\n\nFunction result: {backupSessionFile}</b>")
+        raise e
 
 @Client.on_message(filters.private & filters.document)
 async def receive_session_file(_, message):

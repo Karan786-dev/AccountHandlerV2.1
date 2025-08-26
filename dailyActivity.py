@@ -114,7 +114,7 @@ async def doActivity(channelID):
                 "channels": [channelLink or channelID]
             }
         )
-        
+        await asyncio.sleep(5)
         await UserbotManager.add_task(
             phoneNumber,
             {

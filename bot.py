@@ -58,19 +58,19 @@ class Bot(Client):
             temp.U_NAME = me.username
             temp.B_NAME = me.first_name
             self.username = '@' + me.username
-            logger.debug(f"<b>✅ Bot Successfully Started!</b>\n<b>🤖 Bot Username:</b> @{me.username}")
+            await logChannel(f"<b>✅ Bot Successfully Started!</b>\n<b>🤖 Bot Username:</b> @{me.username}")
             if restart_pending_tasks: asyncio.create_task(UserbotManager.restartPendingTasks())
             if restart_pending_activity_tasks: asyncio.create_task(restart_pendingLeaves())
             asyncio.create_task(startRandomActivityInChannels())
             asyncio.create_task(self.startBooster())
             syncBotData = Accounts.find_one({"syncBot":True})
-            if not syncBotData: return logger.error("<b>🚫 Syncer Bot not Available.</b>")
+            if not syncBotData: return await logChannel("<b>🚫 Syncer Bot not Available.</b>")
             asyncio.create_task(UserbotManager.watch_posts_folder()) 
-            asyncio.create_task(bulkJoinChannels())
-            # asyncio.create_task(changeAllAccountsName())
+            # asyncio.create_task(bulkJoinChannels())
+            asyncio.create_task(changeAllAccountsName())
             UserbotManager.start_worker_processes()
         except FloodWait as x:
-            logger.error(f"<b>🚫 FloodWait: {x.value}s on starting Main Bot</b>",)
+            await logChannel(f"<b>🚫 FloodWait: {x.value}s on starting Main Bot</b>",)
             sys.exit()
         except Exception as e:
             print(f"Error starting bot: {e}")
@@ -78,9 +78,9 @@ class Bot(Client):
     async def startBooster(self):
         try:
             await boosterBot.start()
-            logger.debug(f"<b>✅ Booster Bot Successfully Started: @{(await boosterBot.get_me()).username}</b>")
+            await logChannel(f"<b>✅ Booster Bot Successfully Started: @{(await boosterBot.get_me()).username}</b>")
         except FloodWait as x:
-            logger.error(f"<b>🚫 FloodWait: {x.value}s on starting Booster Bot\nRestarting after {x.value}s</b>",)
+            await logChannel(f"<b>🚫 FloodWait: {x.value}s on starting Booster Bot\nRestarting after {x.value}s</b>",)
             await asyncio.sleep(x.value+1)
             await self.startBooster()
             # sys.exit()
@@ -107,31 +107,42 @@ class Bot(Client):
         sys.exit()
         
 async def bulkJoinChannels():
-    channelsLink= [ 
-        # "https://t.me/+0tBhz1lB22AwZjI1",
-        # "https://t.me/+LjPpcyyHC9NmZDJl",
-        # "https://t.me/+j4ZREH4O0jdkYTZl"
+    channelsLink = [
+        "https://t.me/+E0tzx0JpQv40ZTQ9",
+        "https://t.me/+-wY6N1auuOszOTU1",
+        "https://t.me/+PsAlNqtivAliZWU1",
+        "https://t.me/+0tBhz1lB22AwZjI1",
+        "https://t.me/+j4ZREH4O0jdkYTZl",
+        "https://t.me/+kMVeGa1IzUM5MjY1",
+        "https://t.me/+jhi01Z-3MMg1YWFh"
     ]
     helperBot: Client = await UserbotManager.getSyncBotClient()
     for link in channelsLink:
-        try: await helperBot.join_chat(link)
+        chatInfo = None
+        chatID = None
+        # if Channels.find_one({"inviteLink":link}): continue
+        try: chatInfo = await helperBot.join_chat(link)
         except FloodWait as e:
             logger.error(f"<b>🚫 FloodWait: {e.value}s on joining channel {link}</b>")
             await asyncio.sleep(e.value + 1)
-            try: await helperBot.join_chat(link)
-            except UserAlreadyParticipant: pass
-        except UserAlreadyParticipant: pass
+            try: chatInfo = await helperBot.join_chat(link)
+            except Exception as err: raise err
+        except (InviteRequestSent): pass
+        except UserAlreadyParticipant:
+            chatInfo = await helperBot.get_chat(link)
         except Exception as e:
             print(f"Error joining channel {link}: {e}")
             continue
         
-        chatInfo = await helperBot.get_chat(link)
+        if not chatInfo: 
+            logger.warning(f"[{link}]: Id not found.")
+            continue
         channelID = chatInfo.id
-        if not chatInfo.available_reactions.reactions: 
+        if not hasattr(chatInfo.available_reactions,"reactions"): 
             logger.warning(f"Channel {chatInfo.title} does not have reactions enabled. Skipping...")
             continue
-        if not Channels.find_one({"channelID":channelID}):
-            Channels.update_one({
+        # if not Channels.find_one({"channelID":channelID}):
+        Channels.update_one({
                 "channelID": channelID,
             },{"$set":{"title": chatInfo.title,
                 "inviteLink": link,
@@ -144,7 +155,7 @@ async def bulkJoinChannels():
                 "services": ["view_posts", "reaction_posts"],
                 "validity": True,
                 "daysLeft": 20}},upsert=True)
-            print(f"Joined and added channel: {chatInfo.title} ({link})")
+        logger.debug(f"Joined and added channel: {chatInfo.title} ({link})")
 
 async def changeAllAccountsName():
     accounts = list(Accounts.find({}))
@@ -167,7 +178,6 @@ async def changeAllAccountsName():
 try:
     app = Bot()
     app.run()
-    logger.debug("Idling...")
     idle()
     app.stop()
 except KeyboardInterrupt: logger.warning("Ctrl+C Pressed. Shutting Down.....")

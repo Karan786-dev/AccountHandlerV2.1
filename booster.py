@@ -86,6 +86,7 @@ async def onBoosterForward(_:Client,message:Message):
             post_activity[str(channelID)]['postsCount'] += 1
             if post_activity[str(channelID)]['postsCount'] >= SPAM_LIMIT:
                 await resetPosts(channelID)
+    
     mediaGroupID = message.media_group_id
     if str(channelID) not in message_ids_processed:
         message_ids_processed[str(channelID)] = []
@@ -108,6 +109,7 @@ async def onBoosterForward(_:Client,message:Message):
     messageID = message.forward_from_message_id 
     postLink = f"https://t.me/c/{str(channelID).replace("-100","").replace("-","") if not chatUsername else chatUsername}/{messageID}"
     tasksData = channelData.get("services",[])
+    print(tasksData)
     if not len(tasksData):  return
     reactionEmojis = channelData.get('reactionsType', [])
     tasksArray = []
