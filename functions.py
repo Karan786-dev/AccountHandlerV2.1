@@ -150,8 +150,8 @@ async def joinIfNot(client: Client, chatID, inviteLink):
         except FloodWait as x:
             logger.error(f"[Floodwait]: {x.value}s")
     except (InviteHashEmpty,InviteHashExpired,InviteHashInvalid) as error:
-        userData = await client.get_me()
-        logger.warning(f"<b>[{userData.phone_number}]: </b><code>{inviteLink}</code> =>\n<pre>{error}</pre>")
+        # userData = await client.get_me()
+        # logger.warning(f"<b>[{userData.phone_number}]: </b><code>{inviteLink}</code> =>\n<pre>{error}</pre>")
         return False
     except BotMethodInvalid:
         userData = await client.get_me()

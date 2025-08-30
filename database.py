@@ -1,5 +1,4 @@
 from pymongo import MongoClient  # type: ignore
-from motor.motor_asyncio import AsyncIOMotorClient  # type: ignore
 from config import MONGO_URL , DB_NAME
 
 

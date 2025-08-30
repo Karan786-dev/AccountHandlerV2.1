@@ -252,33 +252,37 @@ async def viewChannelActivity(channelID: int, channelData=0):
     channelLink = channelData.get('inviteLink', 'No invite link')
     channelUsername = channelData.get("username")
     channelTitle = channelData.get('title', 'Untitled Channel')
-    maxJoinDelay = channelData.get("maxJoinDelay", 0)
-    minJoinDelay = channelData.get("minJoinDelay", 0)
-    maxLeaveDelay = channelData.get("maxLeaveDelay", 0)
-    minLeaveDelay = channelData.get("minLeaveDelay", 0)
-    muteProbability = channelData.get("muteProbability", 0)
-    unmuteProbability = channelData.get("unmuteProbability", 0)
+    minimumJoin = channelData.get("minimumJoin",0)
+    maximumJoin = channelData.get("maximumJoin",0)
+    minimumLeave = channelData.get("minimumLeave",0)
+    maximumLeave = channelData.get("maximumLeave",0)
+    minimumMute = channelData.get("minimumMute",0)
+    maximumMute = channelData.get("maximumMute",0)
+    minimumUnmute = channelData.get("minimumUnmute",0)
+    maximumUnmute = channelData.get("maximumUnmute",0)
     
     text = (
         f"📢 <b>Channel Activity Details</b>\n"
         f"<b>Title:</b> <code>{channelTitle}</code>\n"
         f"<b>Invite Link:</b> <a href='{channelLink}'>{channelLink}</a>\n"
-        f"<b>Status:</b> <code>{'✅ Enabled' if channelData.get('activityStatus', False) else '❎ Disabled'}\n\n</code>"
-        f"<b>Join Delay:</b> <code>{minJoinDelay} - {maxJoinDelay}</code>\n"
-        f"<b>Leave Delay:</b> <code>{minLeaveDelay} - {maxLeaveDelay}</code>\n\n"
-        f"<b>Mute Probability:</b> <code>{muteProbability}%</code>\n"
-        f"<b>Unmute Probability:</b> <code>{unmuteProbability}%</code>"
+        f"<b>Status:</b> <code>{'✅ Enabled' if channelData.get('activityStatus', False) else '❎ Disabled'}\n\n</code>\n\n"
+        f"<b>Joining:</b> <code>{minimumJoin} - {maximumJoin}</code>\n"
+        f"<b>Leaving:</b> <code>{minimumLeave} - {maximumLeave}</code>\n"
+        f"<b>Mute:</b> <code>{minimumMute} - {maximumMute}</code>\n"
+        f"<b>Unmute:</b> <code> {minimumUnmute} - {maximumUnmute}</code>"
     )
     
     keyboard = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("✅ Enable" if not channelData.get("activityStatus", False) else "❎ Disable", callback_data=f"/ChannelActivityToggle {channelID}")],
-            [InlineKeyboardButton("Join Delay", callback_data=f"nothing")],
-            [InlineKeyboardButton("⏳ Min", callback_data=f"/changeMinJoinDelay {channelID}"),InlineKeyboardButton("⏳ Max", callback_data=f"/changeMaxJoinDelay {channelID}")],
-            [InlineKeyboardButton("Leave Delay", callback_data=f"nothing")],
-            [InlineKeyboardButton("⏳ Min", callback_data=f"/changeMinLeaveDelay {channelID}"),InlineKeyboardButton("⏳ Max", callback_data=f"/changeMaxLeaveDelay {channelID}")],
-            [InlineKeyboardButton("Probability",callback_data="nothing")],
-            [InlineKeyboardButton("🔕 Mute", callback_data=f"/changeMuteProbability {channelID}"),InlineKeyboardButton("🔕 Unmute",callback_data=f"/changeUnmuteProbability {channelID}")],
+            [InlineKeyboardButton("Joining", callback_data=f"nothing")],
+            [InlineKeyboardButton("⏳ Min", callback_data=f"/changeMinJoin {channelID}"),InlineKeyboardButton("⏳ Max", callback_data=f"/changeMaxJoin {channelID}")],
+            [InlineKeyboardButton("Leaving", callback_data=f"nothing")],
+            [InlineKeyboardButton("⏳ Min", callback_data=f"/changeMinLeave {channelID}"),InlineKeyboardButton("⏳ Max", callback_data=f"/changeMaxLeave {channelID}")],
+            [InlineKeyboardButton("🔕 Mute",callback_data="nothing")],
+            [InlineKeyboardButton("⏳ Min", callback_data=f"/changeMinMute {channelID}"),InlineKeyboardButton("⏳ Max", callback_data=f"/changeMaxMute {channelID}")],
+            [InlineKeyboardButton("🔔 Unmute",callback_data="nothing")],
+            [InlineKeyboardButton("⏳ Min", callback_data=f"/changeMinUnmute {channelID}"),InlineKeyboardButton("⏳ Max", callback_data=f"/changeMaxUnmute {channelID}")],
             [InlineKeyboardButton("🗑 Remove Channel", callback_data=f"/ChannelActivityDelete {channelID}")],
             [InlineKeyboardButton("<- Back", callback_data="/DailyActivityChannels 1")],
         ]

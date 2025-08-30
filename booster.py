@@ -87,29 +87,13 @@ async def onBoosterForward(_:Client,message:Message):
             if post_activity[str(channelID)]['postsCount'] >= SPAM_LIMIT:
                 await resetPosts(channelID)
     
-    mediaGroupID = message.media_group_id
-    if str(channelID) not in message_ids_processed:
-        message_ids_processed[str(channelID)] = []
-    if str(channelID) not in media_groups_processed:
-        media_groups_processed[str(channelID)] = []
-
-    if mediaGroupID:
-        if mediaGroupID in media_groups_processed[str(channelID)]:
-            raise ContinuePropagation()
-        else:
-            media_groups_processed[str(channelID)].append(mediaGroupID)
-    else:
-        if message.forward_from_message_id in message_ids_processed[str(channelID)]:
-            await message.reply_text("This post has already been processed.", reply_to_message_id=message.id)
-            raise ContinuePropagation()
-        else:
-            message_ids_processed[str(channelID)].append(message.forward_from_message_id)
+    
     chatUsername = message.forward_from_chat.username 
     inviteLink = f"@{chatUsername}" if chatUsername else channelData.get("inviteLink")
     messageID = message.forward_from_message_id 
     postLink = f"https://t.me/c/{str(channelID).replace("-100","").replace("-","") if not chatUsername else chatUsername}/{messageID}"
+    # print(postLink)
     tasksData = channelData.get("services",[])
-    print(tasksData)
     if not len(tasksData):  return
     reactionEmojis = channelData.get('reactionsType', [])
     tasksArray = []
@@ -135,8 +119,24 @@ async def onBoosterForward(_:Client,message:Message):
             "inviteLink": inviteLink
         }))
     if not len(tasksArray): return 
+    mediaGroupID = message.media_group_id
+    if str(channelID) not in message_ids_processed:
+        message_ids_processed[str(channelID)] = []
+    if str(channelID) not in media_groups_processed:
+        media_groups_processed[str(channelID)] = []
+
+    if mediaGroupID:
+        if mediaGroupID in media_groups_processed[str(channelID)]:
+            raise ContinuePropagation()
+        else:
+            media_groups_processed[str(channelID)].append(mediaGroupID)
+    else:
+        if message.forward_from_message_id in message_ids_processed[str(channelID)]:
+            await message.reply_text("This post has already been processed.", reply_to_message_id=message.id)
+            raise ContinuePropagation()
     waitingMsg = await message.reply_text("<b>Starting</b> Tasks...",reply_to_message_id=message.id)
     await asyncio.gather(*tasksArray)
+    message_ids_processed[str(channelID)].append(message.forward_from_message_id)
     await _.edit_message_text(message.from_user.id,waitingMsg.id,"✅ All Services is <b>completed</b> on this post")
 
 

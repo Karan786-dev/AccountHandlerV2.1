@@ -89,9 +89,7 @@ async def reactPost(task,client: Client,phone_number,self,taskID):
     except ReactionsTooMany: pass
     except MessageIdInvalid: pass
     except ChatWriteForbidden: pass
-    except Exception as e: 
-        logger.error(f"{phone_number}: Failed To React: {str(e)}")
-        raise e
+    except Exception as e: raise e
 
 async def leaveVc(task,client: Client,phone_number,self,taskID):
     chatID = task["chatID"]
@@ -239,13 +237,13 @@ async def mute_unmute(task,client: Client,phone_number,self,taskID):
     except Exception as err:  raise err
 
 
-async def changeProfileName(task,client: Client,phone_number,self,taskID):
+async def changeProfileName(task,client: Client,phone_number,self=None,taskID=None):
     try:
         firstName = task["firstName"]
         lastName = task.get("lastName","")
         fullName = firstName + " " + lastName
         await client.update_profile(first_name=firstName,last_name=lastName)
-        logger.debug(f"Userbot {phone_number} changed name to `{fullName}`")
+        # logger.debug(f"Userbot {phone_number} changed name to `{fullName}`")
     except Exception as e: 
         logger.critical(f"[{phone_number}]: Error while changing name {e}")
         raise e

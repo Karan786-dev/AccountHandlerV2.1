@@ -105,6 +105,7 @@ class Worker:
                 retries = {}
                 for file in files:
                     path = os.path.join(tasks_folder, file)
+                    # logger.debug(f"[{self.phone_number}]: {file}")
                     async with aiofiles.open(path, "r") as f:
                         content = await f.read()
                     if not content.strip():
@@ -161,7 +162,7 @@ class Worker:
             # logger.info(f"<b>{phone_number}</b>: {task.get("chatID",None)}\nError: {e}\nJoining and Trying Again....")
             joinResult=await joinIfNot(client,task.get("chatID"),inviteLink)
             if not joinResult:
-                logger.critical(f"Failed To Join [{inviteLink}]: {joinResult}")
+                # logger.critical(f"Failed To Join [{inviteLink}]: {joinResult}")
                 try: os.remove(taskFile)
                 except: pass
         except (UserAlreadyParticipant,MessageIdInvalid,InviteRequestSent): pass

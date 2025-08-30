@@ -24,6 +24,7 @@ import os
 import json
 import math
 import subprocess
+import shutil
 
 
 MAX_ACCOUNTS_PER_PROCESS = 100
@@ -48,6 +49,14 @@ class OrderUserbotManager:
         os.makedirs("workers", exist_ok=True)
         allAccounts = Accounts.find({"$or": [{"syncBot": {"$ne": True}}, {"helperBot": {"$ne": True}}]})
         phone_numbers = [acc["phone_number"] for acc in allAccounts]
+        for i, j, k in os.walk("./Accounts/"):
+            for n in j:
+                if not n in phone_numbers:
+                    dir_path = os.path.join(i, n)
+                    if os.path.isdir(dir_path):
+                        shutil.rmtree(dir_path)  # remove the directory and all its contents
+                    else:
+                        os.remove(dir_path)  # remove the file
         for phone_number in phone_numbers:  self.assign_account_to_worker(phone_number)
         logger.info("[Manager] All worker processes handled.")
 
@@ -138,6 +147,7 @@ class OrderUserbotManager:
 
 
     async def bulk_order(self, userbots, task, isOldPending=False):
+        # print(task)
         taskLimit=0
         tasksGathering=[]
         taskPerformCount=random.choice(task["taskPerformCount"]) if isinstance(task["taskPerformCount"],list) else task["taskPerformCount"]

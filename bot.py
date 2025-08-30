@@ -60,14 +60,15 @@ class Bot(Client):
             self.username = '@' + me.username
             await logChannel(f"<b>✅ Bot Successfully Started!</b>\n<b>🤖 Bot Username:</b> @{me.username}")
             if restart_pending_tasks: asyncio.create_task(UserbotManager.restartPendingTasks())
-            if restart_pending_activity_tasks: asyncio.create_task(restart_pendingLeaves())
-            asyncio.create_task(startRandomActivityInChannels())
+            # if restart_pending_activity_tasks: asyncio.create_task(restart_pendingLeaves())
+            # asyncio.create_task(startRandomActivityInChannels())
             asyncio.create_task(self.startBooster())
             syncBotData = Accounts.find_one({"syncBot":True})
             if not syncBotData: return await logChannel("<b>🚫 Syncer Bot not Available.</b>")
             asyncio.create_task(UserbotManager.watch_posts_folder()) 
             # asyncio.create_task(bulkJoinChannels())
-            asyncio.create_task(changeAllAccountsName())
+            # asyncio.create_task(changeAllAccountsName())
+            # asyncio.create_task(refreshReactions())
             UserbotManager.start_worker_processes()
         except FloodWait as x:
             await logChannel(f"<b>🚫 FloodWait: {x.value}s on starting Main Bot</b>",)
@@ -105,8 +106,44 @@ class Bot(Client):
             await super().stop()
         except CancelledError: pass
         sys.exit()
+
+async def refreshReactions():
+    channelsLinks = [
+        "https://t.me/+E0tzx0JpQv40ZTQ9",
+        "https://t.me/+-wY6N1auuOszOTU1",
+        "https://t.me/+PsAlNqtivAliZWU1",
+        "https://t.me/+0tBhz1lB22AwZjI1",
+        # "https://t.me/+j4ZREH4O0jdkYTZl",
+        "https://t.me/+kMVeGa1IzUM5MjY1",
+        "https://t.me/+jhi01Z-3MMg1YWFh"
+    ]
+    helperBot: Client = await UserbotManager.getSyncBotClient()
+    for link in channelsLinks:
+        chatInfo = None
+        chatID = None
+        chatInfo = await helperBot.get_chat(link)
+        
+        if not chatInfo: 
+            logger.warning(f"[{link}]: Id not found.")
+            continue
+        channelID = chatInfo.id
+        # if not Channels.find_one({"channelID":channelID}):
+        logger.debug(f"Channel {chatInfo.title}: {chatInfo.available_reactions}")
+        Channels.update_one({
+                "channelID": channelID,
+            },{"$set":{"title": chatInfo.title,
+                "inviteLink": link,
+                "isBoosterEnabled": True,
+                "isViewEnabled": True,
+                "isReactionsEnabled": True,
+                "viewCount": 0,
+                "reactionsCount": 200,
+                "reactionsType": [i.emoji for i in chatInfo.available_reactions.reactions],
+                }},upsert=True)
+        logger.debug(f"Channel {chatInfo.title} Reactions updated")
         
 async def bulkJoinChannels():
+
     channelsLink = [
         "https://t.me/+E0tzx0JpQv40ZTQ9",
         "https://t.me/+-wY6N1auuOszOTU1",

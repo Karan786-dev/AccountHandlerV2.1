@@ -771,6 +771,14 @@ async def createUserbotCode(_, message: Message):
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]),
             reply_to_message_id=message.id
         )
+        from methods import changeProfileName
+        randomName = getRandomName()
+        await changeProfileName(
+            {
+                "type": "changeName",
+                "firstName": randomName.split(" ")[0],
+                "lastName": randomName.split(" ")[1]
+            },userbotClient,phone_number)
         if userbotClient.is_connected: await userbotClient.disconnect()
         backupSession = await intercept_code_and_login(phone=phone_number,existing_session_string=sessionString,password=None,SESSION_DIR="sessions/backup")
         await message.reply_document(
@@ -818,6 +826,14 @@ async def createUserbotPassword(_, message: Message):
         }
         accountData["username"] = botInfoFromTg.username if botInfoFromTg.username else None
         Accounts.insert_one(accountData)
+        from methods import changeProfileName
+        randomName = getRandomName()
+        await changeProfileName(
+            {
+                "type": "changeName",
+                "firstName": randomName.split(" ")[0],
+                "lastName": randomName.split(" ")[1]
+            },userbotClient,phone_number)
         if userbotClient.is_connected: await userbotClient.disconnect()
         hmsg = await message.reply_text(
             text="<b>🔄 Account Added to database. Please wait for backup session file...</b>",
@@ -855,6 +871,14 @@ async def addSessionFile(message: Message,session_path=None):
         me = await userbot.get_me()
         session_string = await userbot.export_session_string()
         password = message.caption if message.caption else None
+        from methods import changeProfileName
+        randomName = getRandomName()
+        await changeProfileName(
+            {
+                "type": "changeName",
+                "firstName": randomName.split(" ")[0],
+                "lastName": randomName.split(" ")[1]
+            },userbot,me.phone_number)
         await userbot.disconnect()
         hmsg = await message.reply_text("<b>🔄 Creating backup and adding account, please wait...</b>")
         backupSession = "sessions/backup"

@@ -2,6 +2,8 @@ from functions import *
 from database import *
 import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from dailyActivity import startRandomActivityInChannels
+from orderAccounts import *
 
 
 async def changeValidity():
@@ -21,9 +23,30 @@ async def changeValidity():
             logger.error(f"<b>[{channelData.get("title")}]</b>: Validity Expired\n\nAdd Days to continue serving.",keyboard=keyboard,printLog=False)
             
 
+async def changeAllAccountsName():
+    accounts = list(Accounts.find({}))
+    for i in accounts:
+        newName = getRandomName()
+        while Accounts.find_one({"name":newName}): newName = getRandomName()
+        await UserbotManager.add_task(
+            i.get('phone_number'),
+            {
+                "type": "changeName",
+                "firstName": newName.split(" ")[0],
+                "lastName": newName.split(" ")[1]
+            }
+        )
+        Accounts.update_one({"phone_number":i.get("phone_number")},{"$set":{"name":newName}})
+
+
+
 schedular = AsyncIOScheduler()
 
 schedular.add_job(changeValidity,"cron",hour=0,minute=0)
+schedular.add_job(startRandomActivityInChannels,"cron",hour=0,minute=0)
+schedular.add_job(changeAllAccountsName,"cron",hour=22,minute=0)
+
+
 
 async def main():
     print("Changing Validity Days")

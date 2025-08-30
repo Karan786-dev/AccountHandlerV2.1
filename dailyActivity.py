@@ -20,201 +20,94 @@ def log_activity(channelID, message):
     with open(logFile, "a", encoding="utf-8") as f:
         f.write(f"{datetime.datetime.now().isoformat()} - {message}\n")
 
-async def unmuteAfterDelay(phoneNumber,channelID,channelLink,Delay,taskFile):
-    channelData = ActivityChannels.find_one({"channelID": int(channelID)})
-    if not channelData: 
-      log_activity(channelID,f"[{channelID}] Channel Removed from Database. Deleting its pending task file.")
-      return os.remove(taskFile)
-    log_activity(channelID, f"[{phoneNumber}] Scheduled to unmute after {Delay}s.")
-    await asyncio.sleep(Delay)
-    await UserbotManager.add_task(
-            phoneNumber,
-            {
-                "type": "changeNotifyChannel",
-                "chatID": channelID,
-                "duration": 0,
-                "inviteLink": channelLink
-            }
-    )
-    os.remove(taskFile)
-    log_activity(channelID, f"[{phoneNumber}] Unmuted and removed task file: {taskFile}")
-
-async def leaveChannelAfterDelay(phoneNumber, channelID, channelLink, Delay, taskFile):
-    channelData = ActivityChannels.find_one({"channelID": int(channelID)})
-    if not channelData: 
-      log_activity(channelID,f"[{channelID}] Channel Removed from Database. Deleting its pending task file.")
-      return os.remove(taskFile)
-    log_activity(channelID, f"[{phoneNumber}] Scheduled to leave after {Delay}s.")
-    await asyncio.sleep(Delay)
-    await UserbotManager.add_task(
-        phoneNumber,
-        {
-            "type": "leave_channel",
-            "channels": [channelID],
-        }
-    )
-    os.remove(taskFile)
-    log_activity(channelID, f"[{phoneNumber}] Left and removed task file: {taskFile}")
 
 async def doActivity(channelID):
-    while True:   
-        channelData = ActivityChannels.find_one({"channelID": int(channelID)})
-        if not channelData:
-            return None 
-        activityStatus = channelData.get("activityStatus", False)
-        if not activityStatus:
-            break
-        channelLink = channelData.get("inviteLink", None)
-        maxJoinDelay = channelData.get("maxJoinDelay", 0)
-        minJoinDelay = channelData.get("minJoinDelay", 0)
-        maxLeaveDelay = channelData.get("maxLeaveDelay", 0)
-        minLeaveDelay = channelData.get("minLeaveDelay", 0)
-        muteProbability = channelData.get("muteProbability", 0)
-        unmuteProbability = channelData.get("unmuteProbability", 0)
+    log_activity(channelID,"Channel Activity Started")
+    activityData = ActivityChannels.find_one({"channelID": int(channelID)})
+    minJoin = activityData.get("minimumJoin", 0)
+    maxJoin = activityData.get("maximumJoin", 0)
+    channelLink = activityData.get("inviteLink", None)
+    channelTitle = activityData.get("title", None)
+    channelID = activityData.get("channelID")
+    minLeave = activityData.get("minimumLeave", 0)
+    maxLeave = activityData.get("maximumLeave", 0)
+    minMute = activityData.get("minimumMute", 0)
+    maxMute = activityData.get("maximumMute", 0)
+    minUnmute = activityData.get("minimumUnmute", 0)
+    maxUnmute = activityData.get("maximumUnmute", 0)
+    
+    userbots = list(Accounts.find({"syncBot":{"$exists":False},"helperBot":{"$exists":False}}))
+    joinCount = random.randint(minJoin, maxJoin)
+    leaveCount = random.randint(minLeave, maxLeave)
+    muteCount = random.randint(minMute,maxMute)
+    unmuteCount = random.randint(minUnmute,maxUnmute)
 
-        if minJoinDelay > maxJoinDelay:
-            minJoinDelay, maxJoinDelay = 0, 0
-        if minLeaveDelay > maxLeaveDelay:
-            minLeaveDelay, maxLeaveDelay = 0, 0
-
-        random_joinDelay = random.randint(minJoinDelay, maxJoinDelay)
-        random_leaveDelay = random.randint(minLeaveDelay, maxLeaveDelay)
-        shouldMute = random.randint(1, 100) <= muteProbability
-        shouldUnmute = random.randint(1,100) <= unmuteProbability
-        unmuteDelay = random.randint(minLeaveDelay,random_leaveDelay)
-
-
-        try:
-            randomUserbot = Accounts.aggregate([{'$sample': {'size': 1}}]).next()
-        except StopIteration:
-            log_activity(channelID, "No userbots available.")
-            return
-
-        phoneNumber = randomUserbot.get("phone_number")
-        
-        isSyncBot = randomUserbot.get("syncBot")
-        if isSyncBot: continue
-        await asyncio.sleep(random_joinDelay)
-
-        firstName = ""
-        lastName = ""
-        with open("names.txt") as file:
-            fileContent = file.read()
-            names = fileContent.split("\n")
-            fullName = random.choice(names)
-            parts = fullName.strip().split()
-            firstName = parts[0]
-            lastName = parts[1] if len(parts) > 1 else ""
-
-        
-        await UserbotManager.add_task(
-            phoneNumber,
-            {
-                "type": "leave_channel",
-                "channels": [channelLink or channelID]
-            }
-        )
-        await asyncio.sleep(5)
-        await UserbotManager.add_task(
-            phoneNumber,
+    accountsToJoin = random.sample(userbots, joinCount)
+    randomJoinDelay = random_delays(len(accountsToJoin))
+    log_activity(channelID,f"Joining {joinCount} accounts to {channelTitle}: Delays: {randomJoinDelay}")
+    asyncio.create_task(UserbotManager.bulk_order(accountsToJoin, {"type": "join_channel","channels":[channelLink],"restTime":randomJoinDelay,"taskPerformCount":joinCount}))
+    for i in accountsToJoin:
+        newName = getRandomName()
+        while Accounts.find_one({"name":newName}): newName = getRandomName()
+        asyncio.create_task(UserbotManager.add_task(
+            i.get('phone_number'),
             {
                 "type": "changeName",
-                "firstName": firstName,
-                "lastName": lastName
+                "firstName": newName.split(" ")[0],
+                "lastName": newName.split(" ")[1]
             }
-        )
-        log_activity(channelID, f"[{phoneNumber}] Changed name to: {firstName} {lastName}")
-        
-        await asyncio.sleep(10)
+        ))
+        Accounts.update_one({"phone_number":i.get("phone_number")},{"$set":{"name":newName}})
+    accountsToLeave = random.sample(userbots, leaveCount)
+    randomLeaveDelay = random_delays(len(accountsToLeave))
+    log_activity(channelID,f"Leaving {leaveCount} accounts from {channelTitle}: Delays: {randomLeaveDelay}")
+    asyncio.create_task(UserbotManager.bulk_order(accountsToLeave, {"type": "leave_channel","channels":[channelID],"restTime":randomLeaveDelay,"taskPerformCount":leaveCount}))
 
-        await UserbotManager.add_task(
-            phoneNumber,
-            {
-                "type": "join_channel",
-                "channels": [channelLink or channelID],
-            }
-        )
-        log_activity(channelID, f"[{phoneNumber}] Joined. Will leave after {random_leaveDelay}s. Muted: {shouldMute}")
+    accountsToMute = random.sample(userbots, muteCount)
+    randomMuteDelay = random_delays(len(accountsToMute))
+    log_activity(channelID,f"Muting {muteCount} accounts in {channelTitle}: Delays: {randomMuteDelay}")
+    asyncio.create_task(UserbotManager.bulk_order(accountsToMute, {
+        "type":"changeNotifyChannel",
+        "chatID":channelID,
+        "restTime":randomMuteDelay,
+        "taskPerformCount": muteCount,
+        "inviteLink":channelLink,
+        "duration": 2147483647
+    }))
 
-        muteUntill = 2147483647 #Forever :)
-        await UserbotManager.add_task(
-            phoneNumber,
-            {
-                "type": "changeNotifyChannel",
-                "chatID": channelID,
-                "inviteLink": channelLink,
-                "duration": muteUntill if shouldMute else 0,
-            }
-        )
-        if shouldMute: log_activity(channelID, f"[{phoneNumber}] Muted notifications.")
+    accountsToUnmute = random.sample(userbots, unmuteCount)
+    randomUnmuteDelay = random_delays(len(accountsToUnmute))
+    log_activity(channelID,f"Unmuting {unmuteCount} accounts in {channelTitle}: Delays: {randomUnmuteDelay}")
+    asyncio.create_task(UserbotManager.bulk_order(accountsToUnmute,{
+        "type":"changeNotifyChannel",
+        "chatID":channelID,
+        "restTime":randomUnmuteDelay,
+        "taskPerformCount": unmuteCount,
+        "inviteLink":channelLink,
+        "duration": 0
+    }))
 
+    
 
-        dataFile = f"{ACTIVITY_DATA_FOLDER}/{generateRandomString(10)}.json"
-        with open(dataFile, "w") as f:
-            json.dump({"type":"leave","channelID": channelID, "phoneNumber": phoneNumber, "delay": random_leaveDelay}, f)
+def random_delays(num_accounts, total_minutes=20*60, spread=0.5):
+    if num_accounts < 1:
+        return (0, 0)
 
-        asyncio.create_task(
-            leaveChannelAfterDelay(
-                phoneNumber,
-                channelID,
-                channelLink,
-                random_leaveDelay,
-                dataFile,
-
-            )
-        )
-
-        if shouldUnmute:
-            dataFile = f"{ACTIVITY_DATA_FOLDER}/{generateRandomString(10)}.json"
-            with open(dataFile, "w") as f:
-                json.dump({"type":"unmute","channelID": channelID, "phoneNumber": phoneNumber, "delay": unmuteDelay}, f)
-            asyncio.create_task(
-                unmuteAfterDelay(
-                    phoneNumber,
-                    channelID,
-                    channelLink,
-                    unmuteDelay,
-                    dataFile
-                )
-            )
-
-
+    avg_delay = total_minutes / num_accounts
+    min_delay = avg_delay * (1 - spread)
+    max_delay = avg_delay * (1 + spread)
+    return [min_delay*60, max_delay*60]
 async def startRandomActivityInChannels():
     channels = list(ActivityChannels.find({}))
     for i in channels:
         channelID = i.get("channelID")
         asyncio.create_task(doActivity(channelID)) 
 
-async def restart_pendingLeaves():
-    pendingLeaves = os.listdir(ACTIVITY_DATA_FOLDER)
-    for i in pendingLeaves:
-        file = f"{ACTIVITY_DATA_FOLDER}/{i}"
-        try:
-            with open(file, "r") as f:
-                data = json.load(f)
-                channelID = data.get("channelID")
-                phoneNumber = data.get("phoneNumber")
-                Delay = data.get("delay")
-                channelLink = data.get("channelLink",None)
-                taskType = data.get("type","leave")
-                if taskType == "leave":
-                    asyncio.create_task(
-                        leaveChannelAfterDelay(
-                            phoneNumber,
-                            channelID,
-                            channelLink,
-                            Delay,
-                            file
-                        )
-                    )
-                elif taskType == "unmute":
-                    asyncio.create_task(
-                    unmuteAfterDelay(
-                        phoneNumber,
-                        channelID,
-                        Delay,
-                        file
-                    )
-        )
-        except Exception as e:
-            continue
+async def main():
+    while True:
+        await startRandomActivityInChannels()
+        await asyncio.sleep(30000000)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
