@@ -301,7 +301,7 @@ async def join_missing_channels():
         
 def is_spam(message, cfg):
     now = message.date.timestamp()
-    chan = message.chat.id
+    chan = message.peer_id.channel_id
     dq = post_activity.setdefault(chan, deque())
     while dq and now - dq[0] > cfg["spamInterval"]: dq.popleft() 
 

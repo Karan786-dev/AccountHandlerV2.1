@@ -205,7 +205,7 @@ async def logChannel(string, isError=False, keyboard=None, printLog=True):
                             pin_req = await pin_req.json()
                             if not pin_req.ok: logger.error(f"Failed to pin message: {pin_req.text}",)
     except Exception as e:
-        logger.error(f"Error While logger.error: {e}",)
+        logger.error(f"Error While logging: {e}",)
     if printLog:
         if isError:
             logger.error(string)
