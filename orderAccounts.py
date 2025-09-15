@@ -57,11 +57,11 @@ class OrderUserbotManager:
                         shutil.rmtree(dir_path)  # remove the directory and all its contents
                     else:
                         os.remove(dir_path)  # remove the file
-        for phone_number in phone_numbers:  self.assign_account_to_worker(phone_number)
+        for phone_number in phone_numbers:  asyncio.create_task(self.assign_account_to_worker(phone_number))
         logger.info("[Manager] All worker processes handled.")
 
 
-    def assign_account_to_worker(self, phone_number: str):
+    async def assign_account_to_worker(self, phone_number: str):
         os.makedirs(WORKERS_DIR, exist_ok=True)
         # Look for a worker with space
         for worker_id in os.listdir(WORKERS_DIR):
@@ -207,11 +207,9 @@ class OrderUserbotManager:
        
 
     async def watch_posts_folder(self):
-        
         POSTS_FOLDER = "syncbot/posts"
         os.makedirs(POSTS_FOLDER, exist_ok=True)
         logger.info("[SyncBot] Watching posts folder...")
-
         while True:
             try:
                 files = os.listdir(POSTS_FOLDER)
@@ -221,13 +219,11 @@ class OrderUserbotManager:
                     async with aiofiles.open(filepath, "r") as f:
                         content = await f.read()
                         if not content.strip(): continue
-
                     try:
                         post_data = json.loads(content)
                         userbots = post_data.get("userbots") or list(Accounts.find({"syncBot": {"$ne": True}}))
-                        asyncio.create_task(self.bulk_order(userbots, post_data))
-                        if post_data.get("type") == "votePoll": 
-                            logger.info(f"[SyncBot] Processed post task: {filename}, {len(userbots)} userbots")
+                        safe_create_task(self.bulk_order(userbots, post_data))
+                        logger.info(f"[SyncBot] Processed post task: {filename}, {len(userbots)} userbots")
                     except Exception as e: logger.error(f"[SyncBot] Error processing {filename}: {e}")
                     
                     os.remove(filepath)

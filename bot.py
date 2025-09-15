@@ -64,12 +64,13 @@ class Bot(Client):
             # asyncio.create_task(startRandomActivityInChannels())
             asyncio.create_task(self.startBooster())
             syncBotData = Accounts.find_one({"syncBot":True})
+            
             if not syncBotData: return await logChannel("<b>🚫 Syncer Bot not Available.</b>")
-            asyncio.create_task(UserbotManager.watch_posts_folder()) 
+            safe_create_task(UserbotManager.watch_posts_folder())
+            UserbotManager.start_worker_processes()
             # asyncio.create_task(bulkJoinChannels())
             # asyncio.create_task(changeAllAccountsName())
             # asyncio.create_task(refreshReactions())
-            UserbotManager.start_worker_processes()
         except FloodWait as x:
             await logChannel(f"<b>🚫 FloodWait: {x.value}s on starting Main Bot</b>",)
             sys.exit()
@@ -144,26 +145,30 @@ async def refreshReactions():
         
 async def bulkJoinChannels():
 
-    channelsLink = [
-        "https://t.me/+E0tzx0JpQv40ZTQ9",
-        "https://t.me/+-wY6N1auuOszOTU1",
-        "https://t.me/+PsAlNqtivAliZWU1",
-        "https://t.me/+0tBhz1lB22AwZjI1",
-        "https://t.me/+j4ZREH4O0jdkYTZl",
-        "https://t.me/+kMVeGa1IzUM5MjY1",
-        "https://t.me/+jhi01Z-3MMg1YWFh"
-    ]
+    channelsLink =  [
+    "https://t.me/+E0tzx0JpQv40ZTQ9",
+    "https://t.me/+-wY6N1auuOszOTU1",
+    "https://t.me/+PsAlNqtivAliZWU1",
+    "https://t.me/+0tBhz1lB22AwZjI1",
+    "https://t.me/+j4ZREH4O0jdkYTZl",
+    "https://t.me/+kMVeGa1IzUM5MjY1",
+    "https://t.me/+ww_fLnUFomc2MTQ1",
+    "https://t.me/+CI1d9S5oLyEzZDk1"
+]
     helperBot: Client = await UserbotManager.getSyncBotClient()
     for link in channelsLink:
         chatInfo = None
         chatID = None
-        # if Channels.find_one({"inviteLink":link}): continue
+        if Channels.find_one({"inviteLink":link}): continue
         try: chatInfo = await helperBot.join_chat(link)
         except FloodWait as e:
             logger.error(f"<b>🚫 FloodWait: {e.value}s on joining channel {link}</b>")
             await asyncio.sleep(e.value + 1)
             try: chatInfo = await helperBot.join_chat(link)
-            except Exception as err: raise err
+            except UserAlreadyParticipant:
+                chatInfo = await helperBot.get_chat(link)
+            except Exception as err: 
+                raise err
         except (InviteRequestSent): pass
         except UserAlreadyParticipant:
             chatInfo = await helperBot.get_chat(link)
@@ -187,11 +192,11 @@ async def bulkJoinChannels():
                 "isViewEnabled": True,
                 "isReactionsEnabled": True,
                 "viewCount": 0,
-                "reactionsCount": 100,
+                "reactionsCount": 200,
                 "reactionsType": [i.emoji for i in chatInfo.available_reactions.reactions],
                 "services": ["view_posts", "reaction_posts"],
                 "validity": True,
-                "daysLeft": 20}},upsert=True)
+                "daysLeft": 26}},upsert=True)
         logger.debug(f"Joined and added channel: {chatInfo.title} ({link})")
 
 async def changeAllAccountsName():

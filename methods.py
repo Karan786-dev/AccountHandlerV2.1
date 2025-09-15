@@ -199,7 +199,7 @@ async def joinChannel(task,client: Client,phone_number,self,taskID):
                 channelData = await client.get_chat(channel)
                 channel = getattr(channelData,"id",channel)
             await client.join_chat(channel)
-            # logger.debug(f"Userbot {phone_number} joined {channel}")
+            logger.debug(f"Userbot {phone_number} joined {channel}")
         except UserAlreadyParticipant: pass
         except Exception as err: raise err
         rest_time = task.get("restTime", 0)
