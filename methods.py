@@ -259,3 +259,9 @@ async def changeProfileName(task,client: Client,phone_number,self=None,taskID=No
     except Exception as e: 
         logger.critical(f"[{phone_number}]: Error while changing name {e}")
         raise e
+    
+async def changeProfilePicture(task,client: Client,phone_number: str,self=None,taskID=None):
+    try: 
+        photoPath = task["photo"]
+        await client.set_profile_photo(photo=photoPath)
+    except Exception as e: raise e

@@ -178,6 +178,7 @@ class Worker:
                 "votePoll":votePoll,
                 "viewPosts":viewPost,
                 "changeName":changeProfileName,
+                "changeProfilePicture": changeProfilePicture
             }
             
             client = self.client
