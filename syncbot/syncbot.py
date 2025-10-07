@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
+import monkeyPatches
 from pyrogram import Client, filters, ContinuePropagation , idle
 from pyrogram.types import Message
 from database import Channels, Accounts
@@ -87,6 +88,9 @@ async def handle_new_post(event):
                     await resetPosts(channel_id)
         if channel_data.get("title") != chat_title:
             Channels.update_one({"channelID": int(channel_id)}, {"$set": {"title": chat_title}})
+
+        if channel_data.get("username") != chat_username:
+            Channels.update_one({"channelID": int(channel_id)}, {"$set": {"username": chat_username}})
         invite_link = f"@{chat_username}" if chat_username else channel_data.get("inviteLink")
         post_link = f"https://t.me/c/{str(channel_id).replace('-100', '')}/{message_id}" if not chat_username else f"https://t.me/{chat_username}/{message_id}"
         validity = channel_data.get("validity")

@@ -174,7 +174,7 @@ class OrderUserbotManager:
                     phone_number=userbot["phone_number"],
                     task={
                         **task,
-                        "session_string":userbot["session_string"],
+                        "session_string":userbot.get("session_string",""),
                         "taskID_2":taskID_2
                     },
                 )
@@ -184,7 +184,7 @@ class OrderUserbotManager:
                     phone_number=userbot["phone_number"],
                     task={
                         **task,
-                        "session_string":userbot["session_string"],
+                        "session_string":userbot.get("session_string",""),
                     }))
             if taskLimit>=int(taskPerformCount):
                 break
@@ -261,8 +261,10 @@ class OrderUserbotManager:
             if taskType == "joinVoiceChat": return taskID_2
             data = {
                 "task": task,
-                "userbots": {ub["phone_number"]: {k:v for k,v in ub.items() if k not in ["_id","added_at"]} 
-                            for ub in userbots}
+                "userbots": {
+                    ub["phone_number"]: {k:v for k,v in ub.items() if k not in ["_id","added_at"]}
+                    for ub in userbots if "phone_number" in ub
+                }
             }
             
             os.makedirs("tasksData", exist_ok=True)

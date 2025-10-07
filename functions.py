@@ -1,5 +1,6 @@
 import json
 import pytz #type: ignore
+import monkeyPatches
 from pyrogram import Client , filters
 from pyrogram import Client as PyroClient
 from telethon import TelegramClient, events 
@@ -9,7 +10,9 @@ from pyrogram.enums import ChatMemberStatus
 import random
 from datetime import datetime
 from pyrogram.errors import *
+from database import *
 from config import * 
+import time
 import requests
 import re
 from logger import logger
@@ -62,14 +65,20 @@ def is_number(value):
         return bool(re.fullmatch(r'[+-]?(\d+(\.\d+)?|\.\d+)', value))
     return False
 
+runningTime = time.time()
 
 def get_vps_usage():
+    uptime = time.time() - runningTime
+    days, remainder = divmod(int(uptime), 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, secs = divmod(remainder, 60)
     cpu_usage = psutil.cpu_percent(interval=1)
     memory_info = psutil.virtual_memory()
     memory_usage = memory_info.percent
     disk_info = psutil.disk_usage('/')
     disk_usage = disk_info.percent
-    return cpu_usage , memory_usage , disk_usage
+    uptime_readable = f"{days}d {hours}h {minutes}m {secs}s"
+    return cpu_usage , memory_usage , disk_usage , uptime_readable
 
 
 def convertTime(timestamp):
@@ -456,3 +465,47 @@ async def convert_pyrogram_to_telethon(session_name, password=None):
     print("✅ Telethon session generated successfully.")
     print(f"Returned session string: {string_session}...")
     return string_session 
+
+async def getAccountsToJoin(channelID,limit):
+    try:
+        accounts = []
+        query = {"joined": {"$ne": channelID},"syncBot":{"$exists":False},"helperBot":{"$exists":False}}
+        if limit: accounts = list(Chats.find(query).limit(limit))
+        else: accounts = list(Chats.find(query))
+        return accounts
+    except Exception as e:
+        logger.error(f"Error in getAccountsToJoin: {e}")
+        return []
+
+async def getAccountsToLeave(channelID,limit):
+    try:
+        accounts = []
+        query = {"joined": channelID,"syncBot":{"$exists":False},"helperBot":{"$exists":False}}
+        if limit: accounts = list(Chats.find(query).limit(limit))
+        else: accounts = list(Chats.find(query))
+        return accounts
+    except Exception as e:
+        logger.error(f"Error in getAccountsToLeave: {e}")
+        return []
+    
+async def getAccountsToMute(channelID,limit):
+    try:
+        accounts = []
+        query = {"muted": {"$ne": channelID},"syncBot":{"$exists":False},"helperBot":{"$exists":False}}
+        if limit: accounts = list(Chats.find(query).limit(limit))
+        else: accounts = list(Chats.find(query))
+        return accounts
+    except Exception as e:
+        logger.error(f"Error in getAccountsToMute: {e}")
+        return []
+    
+async def getAccountsToUnmute(channelID,limit):
+    try:
+        accounts = []
+        query = {"muted": channelID,"syncBot":{"$exists":False},"helperBot":{"$exists":False}}
+        if limit: accounts = list(Chats.find(query).limit(limit))
+        else: accounts = list(Chats.find(query))
+        return accounts
+    except Exception as e:
+        logger.error(f"Error in getAccountsToUnmute: {e}")
+        return []

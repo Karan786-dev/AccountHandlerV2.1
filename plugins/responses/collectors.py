@@ -1,3 +1,4 @@
+import monkeyPatches
 from pyrogram import Client , filters , ContinuePropagation
 from pyrogram.types import Message , InlineKeyboardMarkup , InlineKeyboardButton , CallbackQuery  , Chat , ReplyKeyboardRemove
 from .responseFunctions import *
@@ -215,24 +216,66 @@ async def doTaskAfterAskingSpeed(task,responseData,seconds,update: CallbackQuery
         })
     elif task == "leaveChat":
         count = responseData.get("membersCount")
-        userBots = userBots[:int(random.choice(count if isinstance(count,list) else [count]))]
-        channelIDs = []
-        for i in responseData.get("chatIDs"): channelIDs.append(i)
+        userBots = []
+        limit = int(random.choice(count if isinstance(count,list) else [count]))
+        for channelID in responseData.get("chatIDs"):
+            if not is_number(channelID):
+                syncBot = await UserbotManager.getSyncBotClient()
+                try: channelInfo = await syncBot.join_chat(channelID)
+                except UserAlreadyParticipant: 
+                    channelInfo = await syncBot.get_chat(channelID)
+                except Exception as e:
+                    if type(update) == CallbackQuery:
+                        return await update.message.reply(f"<b>Error Happed while syncbot tried to join</b>\n<pre>{e}</pre>")
+                    else:
+                        return await update.reply(f"<b>Error Happed while syncbot tried to join</b>\n<pre>{e}</pre>")
+                channelID = channelInfo.id
+                await syncBot.leave_chat(channelID)
+            availableAccounts = await getAccountsToLeave(channelID,int(limit))
+            for i in availableAccounts: 
+                if not i in userBots: userBots.append(i)
         await UserbotManager.bulk_order(userBots,{
             "type":"leave_channel",
-            "channels": channelIDs,
+            "channels": responseData.get("chatIDs"),
             "restTime":seconds,
             "taskPerformCount": count
         })
+
+        if type(update) == CallbackQuery:
+            return await update.message.reply(f"<b>✅ Task Executed: {len(list(userBots))}</b>")
+        else: 
+            return await update.reply(f"<b>✅ Task Executed: {len(list(userBots))}</b>")
     elif task == "joinChat":
         count = responseData.get("membersCount")
-        userBots = userBots[:int(random.choice(count if isinstance(count,list) else [count]))]
-        await UserbotManager.bulk_order(userBots,{
+        userBots = []
+        limit = int(random.choice(count if isinstance(count,list) else [count]))
+        for channelID in responseData.get("chatIDs"):
+            if not is_number(channelID):
+                syncBot = await UserbotManager.getSyncBotClient()
+                try: channelInfo = await syncBot.join_chat(channelID)
+                except UserAlreadyParticipant: 
+                    channelInfo = await syncBot.get_chat(channelID)
+                except Exception as e:
+                    if type(update) == CallbackQuery:
+                        return await update.message.reply(f"<b>Error Happed while syncbot tried to join</b>\n<pre>{e}</pre>")
+                    else:
+                        return await update.reply(f"<b>Error Happed while syncbot tried to join</b>\n<pre>{e}</pre>")
+                channelID = channelInfo.id
+                await syncBot.leave_chat(channelID)
+            availableAccounts = await getAccountsToJoin(channelID,int(limit))
+            for i in availableAccounts: 
+                if not i in userBots: userBots.append(i)
+        await UserbotManager.bulk_order(list(userBots),{
         "type":"join_channel",
         "channels": responseData.get("chatIDs"),
         "restTime":seconds,
-        "taskPerformCount": count
+        "taskPerformCount": limit
         })
+        
+        if type(update) == CallbackQuery:
+            return await update.message.reply(f"<b>✅ Task Executed: {len(list(userBots))}</b>")
+        else: 
+            return await update.reply(f"<b>✅ Task Executed: {len(list(userBots))}</b>")
     elif task == "notify":
         createResponse(update.from_user.id,"askForNotifyChangeDuration",{**responseData,"speed":seconds})
         numberAllowed = [
@@ -436,6 +479,7 @@ async def changeNotifyChannelGetIDHandler(_:Client,message:Message):
         except PeerIdInvalid:
             print(f"SyncBot not a member of channel joining {channelLink}")
             channelInfo = await syncBot.join_chat(channelLink)
+        if not getattr(channelInfo,"id",False): channelInfo = await syncBot.join_chat(channelLink)
         channelID = channelInfo.id 
     else: channelID = channelLink
     deleteResponse(message.from_user.id)
@@ -788,7 +832,7 @@ async def createUserbotCode(_, message: Message):
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]),
             reply_to_message_id=message.id
         )
-        UserbotManager.assign_account_to_worker(accountData.get("phone_number"))
+        await UserbotManager.assign_account_to_worker(accountData.get("phone_number"))
         await hmsg.delete()
         originalBackupFolder = "sessions/realBackup"
         os.makedirs(originalBackupFolder,exist_ok=True)
@@ -848,7 +892,7 @@ async def createUserbotPassword(_, message: Message):
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]),
             reply_to_message_id=message.id
         )
-        UserbotManager.assign_account_to_worker(accountData.get("phone_number"))
+        await UserbotManager.assign_account_to_worker(accountData.get("phone_number"))
         await hmsg.delete()
         originalBackupFolder = "sessions/realBackup"
         os.makedirs(originalBackupFolder,exist_ok=True)
@@ -895,7 +939,7 @@ async def addSessionFile(message: Message,session_path=None):
             "added_at": datetime.now(),
         }
         Accounts.update_one({"phone_number":accountData.get("phone_number")},{"$set":accountData},upsert=True)
-        UserbotManager.assign_account_to_worker(accountData.get("phone_number"))
+        await UserbotManager.assign_account_to_worker(accountData.get("phone_number"))
         await message.reply_document(
             document=backupSessionFile,
             file_name=f"backup_{me.phone_number}.session",

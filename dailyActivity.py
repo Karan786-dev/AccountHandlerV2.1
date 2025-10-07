@@ -36,13 +36,12 @@ async def doActivity(channelID):
     minUnmute = activityData.get("minimumUnmute", 0)
     maxUnmute = activityData.get("maximumUnmute", 0)
     
-    userbots = list(Accounts.find({"syncBot":{"$exists":False},"helperBot":{"$exists":False}}))
     joinCount = random.randint(minJoin, maxJoin)
     leaveCount = random.randint(minLeave, maxLeave)
     muteCount = random.randint(minMute,maxMute)
     unmuteCount = random.randint(minUnmute,maxUnmute)
 
-    accountsToJoin = random.sample(userbots, joinCount)
+    accountsToJoin = await getAccountsToJoin(channelID,joinCount)
     randomJoinDelay = random_delays(len(accountsToJoin))
     log_activity(channelID,f"Joining {joinCount} accounts to {channelTitle}: Delays: {randomJoinDelay}")
     asyncio.create_task(UserbotManager.bulk_order(accountsToJoin, {"type": "join_channel","channels":[channelLink],"restTime":randomJoinDelay,"taskPerformCount":joinCount}))
@@ -58,12 +57,12 @@ async def doActivity(channelID):
             }
         ))
         Accounts.update_one({"phone_number":i.get("phone_number")},{"$set":{"name":newName}})
-    accountsToLeave = random.sample(userbots, leaveCount)
+    accountsToLeave = await getAccountsToLeave(channelID,leaveCount)
     randomLeaveDelay = random_delays(len(accountsToLeave))
     log_activity(channelID,f"Leaving {leaveCount} accounts from {channelTitle}: Delays: {randomLeaveDelay}")
     asyncio.create_task(UserbotManager.bulk_order(accountsToLeave, {"type": "leave_channel","channels":[channelID],"restTime":randomLeaveDelay,"taskPerformCount":leaveCount}))
 
-    accountsToMute = random.sample(userbots, muteCount)
+    accountsToMute = await getAccountsToMute(channelID,muteCount)
     randomMuteDelay = random_delays(len(accountsToMute))
     log_activity(channelID,f"Muting {muteCount} accounts in {channelTitle}: Delays: {randomMuteDelay}")
     asyncio.create_task(UserbotManager.bulk_order(accountsToMute, {
@@ -75,7 +74,7 @@ async def doActivity(channelID):
         "duration": 2147483647
     }))
 
-    accountsToUnmute = random.sample(userbots, unmuteCount)
+    accountsToUnmute = await getAccountsToUnmute(channelID,unmuteCount)
     randomUnmuteDelay = random_delays(len(accountsToUnmute))
     log_activity(channelID,f"Unmuting {unmuteCount} accounts in {channelTitle}: Delays: {randomUnmuteDelay}")
     asyncio.create_task(UserbotManager.bulk_order(accountsToUnmute,{

@@ -1,6 +1,7 @@
 import asyncio
 import sys
 from config import *
+import monkeyPatches
 from pyrogram import Client, idle 
 from functions import *
 from pathlib import Path

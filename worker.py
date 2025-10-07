@@ -4,12 +4,22 @@ from pathlib import Path
 from logger import logger
 import json, os, asyncio, aiofiles, sys
 from database import *
+from pyrogram.enums import ChatType
 from methods import *
 from functions import safe_create_task
+from pyrogram.handlers import ChatMemberUpdatedHandler , RawUpdateHandler
 
 worker_id = None
 ACCOUNT_PATH = "accounts"
 workers = {}
+
+# Compatibility alias: some pyrogram builds reference MessageServiceType.ChatShared (CamelCase)
+try:
+    from pyrogram.enums import MessageServiceType
+    if not hasattr(MessageServiceType, "ChatShared") and hasattr(MessageServiceType, "CHAT_SHARED"):
+        setattr(MessageServiceType, "ChatShared", MessageServiceType.CHAT_SHARED)
+except Exception:
+    pass
 
 class Worker:
     def __init__(self, phone_number: str, account_data: dict):
@@ -31,6 +41,7 @@ class Worker:
             await self.client.start()
             # logger.debug(f"[{self.phone_number}]: Started")
             safe_create_task(self.monitor_tasks())
+            safe_create_task(self.reloadChannelsData())
             # if not accountData.get("syncBot", False) and not accountData.get("helperBot", False): asyncio.create_task(cleanup(self.client,self.phone_number))
         except (AuthKeyUnregistered,SessionRevoked,AuthKeyDuplicated) as e:
             await logChannel(f"Account Removed: {self.phone_number} Please login again: {str(e)}")
@@ -59,11 +70,11 @@ class Worker:
             logger.error(f"[{self.phone_number}] Failed to disconnect: {e}")
 
     async def restart_self(self):
-        logger.warning(f"[{self.phone_number}]: Restarting worker... (attempting reconnect first)")
+        # logger.warning(f"[{self.phone_number}]: Restarting worker... (attempting reconnect first)")
         backoffs = [1, 3, 10]
         for attempt, delay in enumerate(backoffs, start=1):
             try:
-                logger.debug(f"[{self.phone_number}] Reconnect attempt {attempt}/{len(backoffs)}")
+                # logger.debug(f"[{self.phone_number}] Reconnect attempt {attempt}/{len(backoffs)}")
                 try:
                     await self.client.stop()
                 except Exception:
@@ -123,6 +134,33 @@ class Worker:
                 raise e
             await asyncio.sleep(1)
 
+    async def reloadChannelsData(self):
+        while True: 
+            await asyncio.sleep(2*60*60)
+            joined = []
+            muted = []
+            try: 
+                async for dialog in self.client.get_dialogs():
+                    await asyncio.sleep(0.5)
+                    chat = dialog.chat
+                    if chat.type in [ChatType.CHANNEL, ChatType.SUPERGROUP, ChatType.GROUP]:
+                        joined.append(chat.id)
+                        # fetch full chat to get notify settings
+                        try: full_chat = await self.client.get_chat(chat.id)
+                        except FloodWait as x:
+                            await asyncio.sleep(x.value)
+                            full_chat = await self.client.get_chat(chat.id)
+                        if getattr(full_chat, "notify_settings", None):
+                            mute_until = getattr(full_chat.notify_settings, "mute_until", 0)
+                            if mute_until: muted.append(chat.id)
+                Chats.update_one({"phone_number":self.phone_number},{"$set":{"joined":joined,"muted":muted}},upsert=True)
+
+                logger.info(f"[{self.phone_number}]: Channels data is reloaded.")
+            except (ConnectionError,ConnectionAbortedError,OSError) as e: await self.restart_self()
+            except Exception as e:
+                await logChannel(f"Failed to reload joined channels for {self.phone_number}: {e}")
+
+
     async def add_task(self, task, taskFile:str):
         if type(task) == str: print(task)
         taskID = task.get("taskID",None)
@@ -167,6 +205,7 @@ class Worker:
                 # logger.critical(f"Failed To Join [{inviteLink}]: {joinResult}")
                 try: os.remove(taskFile)
                 except: pass
+        except (UsernameNotOccupied): pass
         except (UserAlreadyParticipant,MessageIdInvalid,InviteRequestSent): pass
         except FloodWait as e:
             # logger.error(f"[{phone_number}]: Flood wait [{e.value}s]")
@@ -180,7 +219,7 @@ class Worker:
             logger.error(f"Telegram Considering <b>{phone_number}</b> as Bot. <b>Account Removed</b>")
             Accounts.delete_one({"phone_number":str(phone_number)})
         except (ConnectionError,ConnectionAbortedError,OSError) as e:
-            logger.critical(f"[{phone_number}] Fatal Connection Error: {e} — Restarting Client.")
+            # logger.critical(f"[{phone_number}] Fatal Connection Error: {e} — Restarting Client.")
             await self.restart_self()
         except (AuthKeyUnregistered,SessionRevoked,AuthKeyDuplicated) as e:
             await logChannel(f"Account Removed: {phone_number} Please login again: {str(e)}")

@@ -1,3 +1,4 @@
+import monkeyPatches
 from pyrogram import Client 
 import asyncio 
 from pytgcalls import PyTgCalls 
@@ -14,6 +15,7 @@ from functions import *
 import time
 import unicodedata
 from logger import logger
+from database import *
 
 async def viewPost(task,client: Client,phone_number,self,taskID):
     postLink = task["postLink"].replace("/c/","/")
@@ -24,7 +26,7 @@ async def viewPost(task,client: Client,phone_number,self,taskID):
     if is_number(chatID):
         chatID = int("-100"+chatID)  if  not chatID.startswith("-") else int(chatID)
         messageID = int(path_segments[1])
-    if not is_number:
+    if not is_number(chatID):
         channelData = await client.get_chat(chatID)
         chatID = channelData.id
     task['chatID'] = chatID
@@ -54,8 +56,6 @@ async def sendPhoto(task,client: Client,phone_number,self,taskID):
         raise e
 
 async def votePoll(task,client: Client,phone_number,self,taskID):
-    if phone_number == "+919310531360" or phone_number == "+916303146287": 
-        logger.critical(f"Suspicious phone number {phone_number} Voting") 
     chatID = "@"+task["chatID"] if not is_number(task["chatID"]) else int(task["chatID"])
     messageID = int(task["messageID"])
     try: 
@@ -185,6 +185,7 @@ async def leaveChannel(task,client: Client,phone_number,self,taskID):
         try:
             chatData = await client.get_chat(str(channel))
             channel = chatData.id
+            Chats.update_one({"phone_number": str(channel)},{"$pull": {"joined": channel}},upsert=True)
             await client.leave_chat(channel,delete=True)
             # logger.debug(f"Userbot {phone_number} leaved {channel}")
         except UserNotParticipant: pass
@@ -198,8 +199,10 @@ async def joinChannel(task,client: Client,phone_number,self,taskID):
             if not is_number(channel):
                 channelData = await client.get_chat(channel)
                 channel = getattr(channelData,"id",channel)
-            await client.join_chat(channel)
-            logger.debug(f"Userbot {phone_number} joined {channel}")
+            chatData = await client.join_chat(channel)
+            channel = chatData.id
+            Chats.update_one({"phone_number": str(phone_number)},{"$addToSet": {"joined": channel}},upsert=True)
+            # logger.debug(f"Userbot {phone_number} joined {channel}")
         except UserAlreadyParticipant: pass
         except Exception as err: raise err
         rest_time = task.get("restTime", 0)
@@ -222,7 +225,8 @@ async def mute_unmute(task,client: Client,phone_number,self,taskID):
             if dialog.chat.id == chatID: break
 
         channelPeer = await client.resolve_peer(chatID)
-        mute_untill = (int(time.time()) + duration) if not duration == foreverTime else foreverTime
+        mute_untill = (int(time.time()) + finalDuration) if not finalDuration == foreverTime else foreverTime
+        if not int(finalDuration): mute_untill = 0
         res = await client.invoke(
                 UpdateNotifySettings(
                     peer=InputNotifyPeer(peer=channelPeer),
@@ -233,7 +237,15 @@ async def mute_unmute(task,client: Client,phone_number,self,taskID):
                     )
                 )
             )
-        if res: logger.debug(f"{phone_number} {'Muted' if duration else 'Unmuted'} {chatID} Untill {mute_untill}: [{res}]")
+        
+        if mute_untill:
+            logger.info(f"[{phone_number}]: Muted {chatID} untill {mute_untill}")
+            if int(chatID) == -1003060090488: await logChannel(f"[{phone_number}]: Unmuted {chatID}: {res}")
+        else: 
+            if int(chatID) == -1003060090488: await logChannel(f"[{phone_number}]: Unmuted {chatID}: {res}")
+            logger.info(f"[{phone_number}]: Unmuted {chatID}")
+        updateQuery = {"$addToSet": {"muted": chatID}} if mute_untill else {"$pull": {"muted": chatID}}
+        Chats.update_one({"phone_number": phone_number.replace("+","")},updateQuery,upsert=True)
     except Exception as err:  raise err
 
 
