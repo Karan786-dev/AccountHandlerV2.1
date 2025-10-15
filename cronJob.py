@@ -49,7 +49,7 @@ schedular.add_job(changeAllAccountsName,"cron",hour=22,minute=0)
 
 
 async def main():
-    print("Changing Validity Days")
+    # print("Changing Validity Days")
     schedular.start()
     await asyncio.Event().wait()
 

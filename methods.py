@@ -240,12 +240,10 @@ async def mute_unmute(task,client: Client,phone_number,self,taskID):
         
         if mute_untill:
             logger.info(f"[{phone_number}]: Muted {chatID} untill {mute_untill}")
-            if int(chatID) == -1003060090488: await logChannel(f"[{phone_number}]: Unmuted {chatID}: {res}")
         else: 
-            if int(chatID) == -1003060090488: await logChannel(f"[{phone_number}]: Unmuted {chatID}: {res}")
             logger.info(f"[{phone_number}]: Unmuted {chatID}")
         updateQuery = {"$addToSet": {"muted": chatID}} if mute_untill else {"$pull": {"muted": chatID}}
-        Chats.update_one({"phone_number": phone_number.replace("+","")},updateQuery,upsert=True)
+        Chats.update_one({"phone_number": phone_number},updateQuery,upsert=True)
     except Exception as err:  raise err
 
 

@@ -907,7 +907,7 @@ async def addSessionFile(message: Message,session_path=None):
     session_path: str = downloadedSessions +"/"+ message.document.file_name if not session_path else session_path
     if not os.path.exists(session_path): 
         resu = await message.download(file_name=session_path)
-        print(f"Downlaoded file in {resu}")
+        # print(f"Downlaoded file in {resu}")
 
     try:
         userbot = Client(name=session_path.replace(".session",""),api_id=API_ID, api_hash=API_HASH)
@@ -1017,7 +1017,7 @@ async def changeOptionPercentageResponse(client: Client,message: Message):
 
     for i in optionsPercentage:
             totalPercentage += float(optionsPercentage[i])
-    print(optionsPercentage)
+    # print(optionsPercentage)
     # Ensure option is an int and within allowed range
     try:
         opt = int(option)

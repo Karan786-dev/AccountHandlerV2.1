@@ -30,7 +30,7 @@ asyncio.set_event_loop(loop)
 
 if not telethon_session_string: 
     telethon_session_string = loop.run_until_complete(convert_pyrogram_to_telethon(f"../sessions/userbots/{session_name}", userbot_info.get("password", None)))
-    print(telethon_session_string)
+    # print(telethon_session_string)
     Accounts.update_one({"syncBot":True}, {"$set": {"telethon_session_string": telethon_session_string}})
 
 sync_bot = TelegramClient(StringSession(telethon_session_string), API_ID, API_HASH)
@@ -151,7 +151,7 @@ async def handle_new_post(event):
             voteDelay = channel_data.get("voteRestTime", 0)
             votesCount = channel_data.get("votesCount", 0)
             votesCount = [votesCount,votesCount] if isinstance(votesCount, (int,str)) else votesCount 
-            print(votesCount)
+            # print(votesCount)
             votesCount = random.randint(int(votesCount[0]), int(votesCount[1]))
             userbots = list(Accounts.find({"$or": [{"syncBot": {"$exists": False}}, {"syncBot": False}, {"helperBot": {"$exists": False}}, {"helperBot": False}]}, {"_id": 0, "added_at": 0}))
             optionsPerc = channel_data.get("optionsPercentage", {})

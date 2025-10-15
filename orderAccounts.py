@@ -128,7 +128,28 @@ class OrderUserbotManager:
             return False
 
             
-    async def create_new_process(self,new_worker_id): subprocess.Popen(["python3", "worker.py", new_worker_id])
+    async def create_new_process(self,new_worker_id): 
+        process = await asyncio.create_subprocess_exec(
+            "python3", "worker.py", new_worker_id,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            stdin=asyncio.subprocess.DEVNULL
+        )
+
+        async def stream_output(stream, prefix=""):
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                print(f"{prefix}{line.decode().rstrip()}")
+
+        # Read stdout and stderr concurrently
+        await asyncio.gather(
+            stream_output(process.stdout, prefix=f"[{new_worker_id} STDOUT] "),
+            stream_output(process.stderr, prefix=f"[{new_worker_id} STDERR] ")
+        )
+
+        await process.wait()
         
     def _queue_account(self, phone_number, worker_folder):
         accountData = Accounts.find_one({"phone_number": phone_number})
@@ -196,7 +217,7 @@ class OrderUserbotManager:
             accountData = Accounts.find_one({"phone_number":phone_number})
             os.makedirs(f"{ACCOUNT_FOLDER}/{phone_number}/tasksData/",exist_ok=True)
             taskID = task.get("taskID", generateRandomString())
-            
+            # if task.get("type") == "changeNotifyChannel": print(task)
             with open(f"{ACCOUNT_FOLDER}/{phone_number}/tasksData/{taskID}.json", "w") as f:
                 f.write(json.dumps(task, indent=4))
                 f.close()

