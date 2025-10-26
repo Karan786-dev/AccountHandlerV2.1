@@ -20,7 +20,7 @@ async def intercept_code_and_login(phone: str, existing_session_string: str, pas
         "new_session_string": None,
         "error": None
     }
-    sanitized = phone.replace("+", "").replace(" ", "")
+    sanitized = phone.replace(" ", "")
     listener_name = f"listener_{sanitized}"
     new_name = sanitized
     os.makedirs(SESSION_DIR, exist_ok=True)

@@ -836,7 +836,7 @@ async def createUserbotCode(_, message: Message):
         await hmsg.delete()
         originalBackupFolder = "sessions/realBackup"
         os.makedirs(originalBackupFolder,exist_ok=True)
-        dst = f"{originalBackupFolder}/{phone_number.replace('+','')}.session"
+        dst = f"{originalBackupFolder}/{phone_number}.session"
         os.replace(backupSession, dst)
     except PhoneCodeInvalid:
         await message.reply("<b>⚠️ Invalid Code:  Please enter a valid code</b>")
@@ -896,7 +896,7 @@ async def createUserbotPassword(_, message: Message):
         await hmsg.delete()
         originalBackupFolder = "sessions/realBackup"
         os.makedirs(originalBackupFolder,exist_ok=True)
-        dst = f"{originalBackupFolder}/{phone_number.replace('+','')}.session"
+        dst = f"{originalBackupFolder}/{phone_number}.session"
         os.replace(backupSession, dst)
     except Exception as e: await message.reply(f"<b>Failed to Sign In: {e}</b>", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Try again!!", "addUserbot")]]))
     
@@ -949,9 +949,9 @@ async def addSessionFile(message: Message,session_path=None):
         await hmsg.delete()
         originalBackupFolder = "sessions/realBackup"
         os.makedirs(originalBackupFolder,exist_ok=True)
-        dst = f"{originalBackupFolder}/{me.phone_number.replace('+','')}.session"
+        dst = f"{originalBackupFolder}/{me.phone_number}.session"
         os.replace(backupSessionFile, dst)
-        os.replace(session_path,f"{USERBOT_SESSION}/{me.phone_number.replace("+","")}.session")
+        os.replace(session_path,f"{USERBOT_SESSION}/{me.phone_number}.session")
     except Exception as e:
         await message.reply_text(f"<b>❌ Failed to load session file: {e}\n\nFunction result: {backupSessionFile}</b>")
         raise e

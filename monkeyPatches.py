@@ -7,7 +7,8 @@ _original_leave_chat = Client.leave_chat
 
 async def join_chat_hook(self, chat_id):
     result = await _original_join_chat(self, chat_id)
-    phone = (await self.get_me()).phone_number
+    phone:str = (await self.get_me()).phone_number
+    if not phone.startswith("+"): phone = f"+{phone}"
     logger.info(f"[{phone}]: Joined {result.title}")
     Chats.update_one({"phone_number": phone}, {"$addToSet": {"joined": result.id}}, upsert=True)
     return result
@@ -16,6 +17,7 @@ async def leave_chat_hook(self, chat_id,delete=True):
     phone = (await self.get_me()).phone_number
     result = await _original_leave_chat(self, chat_id,delete=delete)
     logger.info(f"[{phone}]: Leaved {chat_id}")
+    if not phone.startswith("+"): phone = f"+{phone}"
     Chats.update_one({"phone_number": phone}, {"$pull": {"joined": chat_id}}, upsert=True)
     return result
 

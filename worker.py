@@ -155,6 +155,7 @@ class Worker:
                         if getattr(full_chat, "notify_settings", None):
                             mute_until = getattr(full_chat.notify_settings, "mute_until", 0)
                             if mute_until: muted.append(chat.id)
+                if not self.phone_number.startswith("+"): self.phone_number = f"+{self.phone_number}"
                 Chats.update_one({"phone_number":self.phone_number},{"$set":{"joined":joined,"muted":muted}},upsert=True)
 
                 logger.info(f"[{self.phone_number}]: Channels data is reloaded.")

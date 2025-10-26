@@ -276,7 +276,7 @@ async def addAccountWithSessionFile(phoneNumber,accountData):
 async def intercept_code_and_login(phone: str, existing_session_string: str, password: str, SESSION_DIR=USERBOT_SESSION) -> str | bool:
     CODE_WAIT_TIMEOUT = 120
     os.makedirs(SESSION_DIR, exist_ok=True)
-    sanitized = phone.replace("+", "").replace(" ", "")
+    sanitized = phone.replace(" ", "")
     listener_name = f"listener_{sanitized}"
     new_name = sanitized 
     os.makedirs(SESSION_DIR, exist_ok=True)

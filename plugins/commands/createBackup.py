@@ -19,7 +19,7 @@ async def create_backup(client: Client, message: Message):
             phoneNumber = i.get("phone_number")
             sessionString = i.get("session_string")
             password = i.get("password")
-            if os.path.exists("sessions/realBackup" + f"/{phoneNumber.replace("+","")}.session"): continue
+            if os.path.exists("sessions/realBackup" + f"/{phoneNumber}.session"): continue
             hmsg = await message.reply_text(f"<b>📦 Creating backup for {phoneNumber}...</b>")
             try:
                 sessionFile = await intercept_code_and_login(phoneNumber, sessionString, password, backupFolder)
@@ -30,7 +30,7 @@ async def create_backup(client: Client, message: Message):
                 )
                 originalBackupFolder = "sessions/realBackup"
                 os.makedirs(originalBackupFolder,exist_ok=True)
-                dst = f"{originalBackupFolder}/{phoneNumber.replace('+','')}.session"
+                dst = f"{originalBackupFolder}/{phoneNumber}.session"
                 os.replace(sessionFile, dst)
             except Exception as e:
                 logger.error(f"<b>❌ Error creating backup for {phoneNumber}: {e}</b>")

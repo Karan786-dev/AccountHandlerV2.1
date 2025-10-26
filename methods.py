@@ -185,7 +185,6 @@ async def leaveChannel(task,client: Client,phone_number,self,taskID):
         try:
             chatData = await client.get_chat(str(channel))
             channel = chatData.id
-            Chats.update_one({"phone_number": str(channel)},{"$pull": {"joined": channel}},upsert=True)
             await client.leave_chat(channel,delete=True)
             # logger.debug(f"Userbot {phone_number} leaved {channel}")
         except UserNotParticipant: pass
@@ -201,7 +200,6 @@ async def joinChannel(task,client: Client,phone_number,self,taskID):
                 channel = getattr(channelData,"id",channel)
             chatData = await client.join_chat(channel)
             channel = chatData.id
-            Chats.update_one({"phone_number": str(phone_number)},{"$addToSet": {"joined": channel}},upsert=True)
             # logger.debug(f"Userbot {phone_number} joined {channel}")
         except UserAlreadyParticipant: pass
         except Exception as err: raise err
@@ -212,7 +210,7 @@ async def joinChannel(task,client: Client,phone_number,self,taskID):
         # logger.critical(f"Random Rest time: {rest_time}")
         await asyncio.sleep(float(rest_time))
 
-async def mute_unmute(task,client: Client,phone_number,self,taskID):
+async def mute_unmute(task,client: Client,phone_number: str,self,taskID):
     try:
         chatID: str = task["chatID"]
         # If Duration is 0 then channel will be unmuted
@@ -243,7 +241,7 @@ async def mute_unmute(task,client: Client,phone_number,self,taskID):
         else: 
             logger.info(f"[{phone_number}]: Unmuted {chatID}")
         updateQuery = {"$addToSet": {"muted": chatID}} if mute_untill else {"$pull": {"muted": chatID}}
-        Chats.update_one({"phone_number": phone_number},updateQuery,upsert=True)
+        Chats.update_one({"phone_number": phone_number if phone_number.startswith("+") else f"+{phone_number}"},updateQuery,upsert=True)
     except Exception as err:  raise err
 
 
