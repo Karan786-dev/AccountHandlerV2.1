@@ -954,7 +954,6 @@ async def addSessionFile(message: Message,session_path=None):
         os.replace(session_path,f"{USERBOT_SESSION}/{me.phone_number}.session")
     except Exception as e:
         await message.reply_text(f"<b>❌ Failed to load session file: {e}\n\nFunction result: {backupSessionFile}</b>")
-        raise e
 
 @Client.on_message(filters.private & filters.document)
 async def receive_session_file(_, message):

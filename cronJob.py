@@ -45,7 +45,7 @@ async def changeAllAccountsName():
 schedular = AsyncIOScheduler(timezone=pytz.timezone("Asia/Kolkata"))
 
 schedular.add_job(changeValidity,"cron",hour=0,minute=0)
-schedular.add_job(startRandomActivityInChannels,"cron",hour=14,minute=10)
+schedular.add_job(startRandomActivityInChannels,"cron",hour=0,minute=0)
 schedular.add_job(changeAllAccountsName,"cron",hour=22,minute=0)
 
 
