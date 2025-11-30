@@ -908,7 +908,7 @@ async def addSessionFile(message: Message,session_path=None):
     if not os.path.exists(session_path): 
         resu = await message.download(file_name=session_path)
         # print(f"Downlaoded file in {resu}")
-
+    backupSessionFile = None #Need to access it in exception 
     try:
         userbot = Client(name=session_path.replace(".session",""),api_id=API_ID, api_hash=API_HASH)
         await userbot.connect()

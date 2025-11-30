@@ -31,7 +31,7 @@ class Worker:
             session_string=self.accountData.get("session_string"),
             api_id=API_ID,
             api_hash=API_HASH,
-            max_message_cache_size=100,
+            max_message_cache_size=1,
             max_concurrent_transmissions=1
         )
 
