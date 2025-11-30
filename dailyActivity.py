@@ -41,50 +41,86 @@ async def doActivity(channelID):
     muteCount = random.randint(minMute,maxMute)
     unmuteCount = random.randint(minUnmute,maxUnmute)
 
-    accountsToJoin = await getAccountsToJoin(channelID,joinCount)
-    randomJoinDelay = random_delays(len(accountsToJoin))
-    log_activity(channelID,f"Joining {len(accountsToJoin)} accounts to {channelTitle}: Delays: {randomJoinDelay}")
-    asyncio.create_task(UserbotManager.bulk_order(accountsToJoin, {"type": "join_channel","channels":[channelLink],"restTime":randomJoinDelay,"taskPerformCount":joinCount}))
-    for i in accountsToJoin:
-        newName = getRandomName()
-        while Accounts.find_one({"name":newName}): newName = getRandomName()
-        asyncio.create_task(UserbotManager.add_task(
-            i.get('phone_number'),
-            {
-                "type": "changeName",
-                "firstName": newName.split(" ")[0],
-                "lastName": newName.split(" ")[1]
-            }
-        ))
-        Accounts.update_one({"phone_number":i.get("phone_number")},{"$set":{"name":newName}})
-    accountsToLeave = await getAccountsToLeave(channelID,leaveCount)
-    randomLeaveDelay = random_delays(len(accountsToLeave))
-    log_activity(channelID,f"Leaving {len(accountsToLeave)} accounts from {channelTitle}: Delays: {randomLeaveDelay}")
-    asyncio.create_task(UserbotManager.bulk_order(accountsToLeave, {"type": "leave_channel","channels":[channelID],"restTime":randomLeaveDelay,"taskPerformCount":leaveCount}))
+    # Process operations concurrently but with proper error handling
+    try:
+        # Start join operation
+        accountsToJoin = await getAccountsToJoin(channelID,joinCount)
+        randomJoinDelay = random_delays(len(accountsToJoin))
+        log_activity(channelID,f"Joining {len(accountsToJoin)} accounts to {channelTitle}: Delays: {randomJoinDelay}")
+        join_task = UserbotManager.bulk_order(accountsToJoin, {
+            "type": "join_channel",
+            "channels":[channelLink],
+            "restTime":randomJoinDelay,
+            "taskPerformCount":joinCount
+        })
 
-    accountsToMute = await getAccountsToMute(channelID,muteCount)
-    randomMuteDelay = random_delays(len(accountsToMute))
-    log_activity(channelID,f"Muting {len(accountsToMute)} accounts in {channelTitle}: Delays: {randomMuteDelay}: Accounts List- {[i.get("phone_number") for i in accountsToMute]}")
-    asyncio.create_task(UserbotManager.bulk_order(accountsToMute, {
-        "type":"changeNotifyChannel",
-        "chatID":channelID,
-        "restTime":randomMuteDelay,
-        "taskPerformCount": muteCount,
-        "inviteLink":channelLink,
-        "duration": 2147483647
-    }))
+        # Start name changes
+        name_tasks = []
+        for i in accountsToJoin:
+            newName = getRandomName()
+            while Accounts.find_one({"name":newName}): newName = getRandomName()
+            name_task = UserbotManager.add_task(
+                i.get('phone_number'),
+                {
+                    "type": "changeName",
+                    "firstName": newName.split(" ")[0],
+                    "lastName": newName.split(" ")[1]
+                }
+            )
+            name_tasks.append(name_task)
+            Accounts.update_one({"phone_number":i.get("phone_number")},{"$set":{"name":newName}})
 
-    accountsToUnmute = await getAccountsToUnmute(channelID,unmuteCount)
-    randomUnmuteDelay = random_delays(len(accountsToUnmute))
-    log_activity(channelID,f"Unmuting {len(accountsToUnmute)} accounts in {channelTitle}: Delays: {randomUnmuteDelay} ")
-    asyncio.create_task(UserbotManager.bulk_order(accountsToUnmute,{
-        "type":"changeNotifyChannel",
-        "chatID":channelID,
-        "restTime":randomUnmuteDelay,
-        "taskPerformCount": unmuteCount,
-        "inviteLink":channelLink,
-        "duration": 0
-    }))
+        # Start leave operation
+        accountsToLeave = await getAccountsToLeave(channelID,leaveCount)
+        randomLeaveDelay = random_delays(len(accountsToLeave))
+        log_activity(channelID,f"Leaving {len(accountsToLeave)} accounts from {channelTitle}: Delays: {randomLeaveDelay}")
+        leave_task = UserbotManager.bulk_order(accountsToLeave, {
+            "type": "leave_channel",
+            "channels":[channelID],
+            "restTime":randomLeaveDelay,
+            "taskPerformCount":leaveCount
+        })
+
+        # Start mute operation
+        accountsToMute = await getAccountsToMute(channelID,muteCount)
+        randomMuteDelay = random_delays(len(accountsToMute))
+        log_activity(channelID,f"Muting {len(accountsToMute)} accounts in {channelTitle}: Delays: {randomMuteDelay}: Accounts List- {[i.get('phone_number') for i in accountsToMute]}")
+        mute_task = UserbotManager.bulk_order(accountsToMute, {
+            "type":"changeNotifyChannel",
+            "chatID":channelID,
+            "restTime":randomMuteDelay,
+            "taskPerformCount": muteCount,
+            "inviteLink":channelLink,
+            "duration": 2147483647
+        })
+
+        # Start unmute operation
+        accountsToUnmute = await getAccountsToUnmute(channelID,unmuteCount)
+        randomUnmuteDelay = random_delays(len(accountsToUnmute))
+        log_activity(channelID,f"Unmuting {len(accountsToUnmute)} accounts in {channelTitle}: Delays: {randomUnmuteDelay} ")
+        unmute_task = UserbotManager.bulk_order(accountsToUnmute,{
+            "type":"changeNotifyChannel",
+            "chatID":channelID,
+            "restTime":randomUnmuteDelay,
+            "taskPerformCount": unmuteCount,
+            "inviteLink":channelLink,
+            "duration": 0
+        })
+
+        # Run all operations concurrently and wait for completion
+        tasks = [join_task]
+        tasks.extend(name_tasks)
+        tasks.extend([leave_task, mute_task, unmute_task])
+        
+        # Filter out None tasks (in case some operations had no accounts to process)
+        tasks = [t for t in tasks if t is not None]
+        
+        if tasks:
+            await asyncio.gather(*tasks)
+            
+    except Exception as e:
+        log_activity(channelID, f"Error in channel activity: {str(e)}")
+        await logChannel(f"❌ Error in channel {channelTitle} ({channelID}): {str(e)}")
 
     
 
@@ -97,11 +133,23 @@ def random_delays(num_accounts, total_minutes=20*60, spread=0.5):
     # return [0,0]
     return [min_delay*60, max_delay*60]
 
+MAX_CONCURRENT_CHANNELS = 5  # Adjust this value based on your needs
+channel_semaphore = asyncio.Semaphore(MAX_CONCURRENT_CHANNELS)
+
+async def process_channel(channel):
+    async with channel_semaphore:
+        channelID = channel.get("channelID")
+        await doActivity(channelID)
+
 async def startRandomActivityInChannels():
     channels = list(ActivityChannels.find({}))
-    for i in channels:
-        channelID = i.get("channelID")
-        asyncio.create_task(doActivity(channelID)) 
+    await logChannel(f"<b>🔄 Running Random Activity in Channels.</b>\n\n<b>Total Channels</b>: <code>{len(channels)}</code>")
+    
+    # Create tasks for all channels but limit concurrent execution
+    tasks = [asyncio.create_task(process_channel(channel)) for channel in channels]
+    
+    # Wait for all channels to complete while allowing concurrent processing
+    await asyncio.gather(*tasks)
 
 async def main():
     while True:

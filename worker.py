@@ -124,8 +124,6 @@ class Worker:
                     if not content.strip():
                         continue
                     task = json.loads(content)
-                    logger.debug(f"[{self.phone_number}]: {file}")
-                    logger.info(f"[why coding]: {self.phone_number}- {task}")
                     safe_create_task(self.add_task(task, path))
                     try: os.remove(path)
                     except FileNotFoundError: pass

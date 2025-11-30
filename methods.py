@@ -241,7 +241,8 @@ async def mute_unmute(task,client: Client,phone_number: str,self,taskID):
         else: 
             logger.info(f"[{phone_number}]: Unmuted {chatID}")
         updateQuery = {"$addToSet": {"muted": chatID}} if mute_untill else {"$pull": {"muted": chatID}}
-        Chats.update_one({"phone_number": phone_number if phone_number.startswith("+") else f"+{phone_number}"},updateQuery,upsert=True)
+        phone_number = phone_number if phone_number.startswith("+") else f"+{phone_number}"
+        Chats.update_one({"phone_number": phone_number},updateQuery,upsert=True)
     except Exception as err:  raise err
 
 
