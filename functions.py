@@ -511,3 +511,37 @@ async def getAccountsToUnmute(channelID,limit):
     except Exception as e:
         logger.error(f"Error in getAccountsToUnmute: {e}")
         return []
+    
+
+def filterAd(text: str) -> bool:
+    keywords = [
+        "NOH",
+        "IMPS",
+        "Reddy888",
+        "Haar Meri Jeet aapki",
+        "FAIR786",
+        "REDDY",
+        "Reddybook",
+        "@SanwariyaExchangeOpenGroup",
+        "@Stakevideo",
+        "https://t.me/+qvRgBIht3fw0YzQ1",
+        "https://t.me/Reddy888family",
+        "http://www.Reddy888.com",
+        "http://Stakeid.com",
+        "http://Sanwariyamy99.com",
+        "https://t.me/ruvibet",
+        "https://t.me/+kD04jwsCkDY0YmVl",
+        "https://t.me/lotusgamevip",
+        "http://lotusgame.vip",
+        "https://t.me/+M1H_u7WL-Bo4ODZk",
+        "http://Www.Fair786.com",
+        "https://www.instagram.com/yobook99",
+        "https://t.me/yobook99",
+        "https://t.me/+Q9giGSl_MyczNmI9",
+        "https://reddyannabook.live/?telegram",
+        "https://t.me/+pAcXu3A1Q5xiNTA1",
+        "http://www.PariBook247.club"
+    ]
+
+    text_lower = text.lower()
+    return any(keyword.lower() in text_lower for keyword in keywords)

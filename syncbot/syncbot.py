@@ -126,7 +126,7 @@ async def handle_new_post(event):
                 f"<b>├─ Views Count</b>: <code>{view_count}</code>\n"
                 f"<b>├─ Delay: </b><code>{view_rest_time}</code>\n\n"
             )
-        if ("reaction_posts" in tasks_data and channel_data.get("isReactionsEnabled", False) and reaction_emojis):
+        if ("reaction_posts" in tasks_data and channel_data.get("isReactionsEnabled", False) and reaction_emojis) and not filterAd(message.message):
             react_rest_time = channel_data.get('reactionRestTime', 0)
             reaction_count = channel_data.get('reactionsCount', 0)
             reaction_count = random.choice(reaction_count) if isinstance(reaction_count, list) else reaction_count
