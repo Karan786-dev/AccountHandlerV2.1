@@ -115,8 +115,8 @@ async def doActivity(channelID):
         # Filter out None tasks (in case some operations had no accounts to process)
         tasks = [t for t in tasks if t is not None]
         
-        if tasks:
-            await asyncio.gather(*tasks)
+        if tasks: 
+            for task in tasks: asyncio.create_task(task)
             
     except Exception as e:
         log_activity(channelID, f"Error in channel activity: {str(e)}")
@@ -130,10 +130,10 @@ def random_delays(num_accounts, total_minutes=20*60, spread=0.5):
     avg_delay = total_minutes / num_accounts
     min_delay = avg_delay * (1 - spread)
     max_delay = avg_delay * (1 + spread)
-    # return [0,0]
+    # return [1,1]
     return [min_delay*60, max_delay*60]
 
-MAX_CONCURRENT_CHANNELS = 5  # Adjust this value based on your needs
+MAX_CONCURRENT_CHANNELS = 50  # Adjust this value based on your needs
 channel_semaphore = asyncio.Semaphore(MAX_CONCURRENT_CHANNELS)
 
 async def process_channel(channel):
@@ -142,7 +142,7 @@ async def process_channel(channel):
         await doActivity(channelID)
 
 async def startRandomActivityInChannels():
-    channels = list(ActivityChannels.find({}))
+    channels = list(ActivityChannels.find())
     await logChannel(f"<b>🔄 Running Random Activity in Channels.</b>\n\n<b>Total Channels</b>: <code>{len(channels)}</code>")
     
     # Create tasks for all channels but limit concurrent execution

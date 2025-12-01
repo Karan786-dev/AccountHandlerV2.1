@@ -6,7 +6,7 @@ import pytz
 from dailyActivity import startRandomActivityInChannels
 from orderAccounts import *
 from datetime import datetime, timedelta
-
+import os
 
 async def changeValidity():
     allChannels = list(Channels.find({}))
@@ -40,12 +40,15 @@ async def changeAllAccountsName():
         )
         Accounts.update_one({"phone_number":i.get("phone_number")},{"$set":{"name":newName}})
 
-
+def restartBots():
+    os.system("pm2 restart AccountHandler AccountHandlerV2")
 
 schedular = AsyncIOScheduler(timezone=pytz.timezone("Asia/Kolkata"))
 
+schedular.add_job(restartBots,"interval",hours=2)
 schedular.add_job(changeValidity,"cron",hour=0,minute=0)
-schedular.add_job(startRandomActivityInChannels,"cron",hour=0,minute=0)
+schedular.add_job(startRandomActivityInChannels,"cron",hour=12,minute=0)
+# schedular.add_job(startRandomActivityInChannels,"interval",minutes=1)
 schedular.add_job(changeAllAccountsName,"cron",hour=22,minute=0)
 
 
