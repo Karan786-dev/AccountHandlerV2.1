@@ -224,8 +224,9 @@ class Worker:
         except (ConnectionError,ConnectionAbortedError,OSError) as e:
             # logger.critical(f"[{phone_number}] Fatal Connection Error: {e} — Restarting Client.")
             await self.restart_self()
+            await self.add_task()
         except (AuthKeyUnregistered,SessionRevoked,AuthKeyDuplicated) as e:
-            await logChannel(f"Account Removed: {phone_number} Please login again: {str(e)}")
+            await logChannel(f"Account Removed: {phone_number} Please login again: <pre>{str(e)}</pre>")
             Accounts.delete_one({"phone_number":str(phone_number)})
             await self.stop()
         except (UserDeactivated,UserDeactivatedBan):
