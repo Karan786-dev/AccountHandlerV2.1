@@ -112,14 +112,15 @@ async def handle_new_post(event):
             view_rest_time = channel_data.get("viewRestTime", 0)
             view_count = channel_data.get("viewCount", 0)
             view_count = random.randint(view_count[0], view_count[1] if len(view_count) > 1 else view_count[0]) if isinstance(view_count, list) else view_count
-            userbots = list(Accounts.find({}))[:int(view_count)]
+            userbots = list(Accounts.find({},{"_id":0,"added_at":0}))[:int(view_count)]
             tasks_array.append({
                 "type": "viewPosts",
                 "chatID": channel_id,
                 "postLink": post_link,
                 "restTime": view_rest_time,
                 "taskPerformCount": int(view_count),
-                "inviteLink": invite_link
+                "inviteLink": invite_link,
+                "userbots":userbots
             })
             text += (
                 f"<b>📊 Views:</b>\n"
@@ -130,7 +131,7 @@ async def handle_new_post(event):
             react_rest_time = channel_data.get('reactionRestTime', 0)
             reaction_count = channel_data.get('reactionsCount', 0)
             reaction_count = random.choice(reaction_count) if isinstance(reaction_count, list) else reaction_count
-            userbots = list(Accounts.find({}))[:int(reaction_count)]
+            userbots = list(Accounts.find({},{"_id":0,"added_at":0}))[:int(reaction_count)]
             tasks_array.append({
                 "type": "reactPost",
                 "postLink": post_link,
@@ -138,7 +139,8 @@ async def handle_new_post(event):
                 "restTime": react_rest_time,
                 "taskPerformCount": int(reaction_count),
                 "emoji": reaction_emojis,
-                "inviteLink": invite_link
+                "inviteLink": invite_link,
+                "userbots":userbots
             })
             text += (
                 f"<b>🎭 Auto Reactions:</b>\n"

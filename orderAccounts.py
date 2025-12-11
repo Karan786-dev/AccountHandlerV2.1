@@ -27,7 +27,7 @@ import subprocess
 import shutil
 
 
-MAX_ACCOUNTS_PER_PROCESS = 100
+MAX_ACCOUNTS_PER_PROCESS = 200
 
 Path(ACCOUNT_FOLDER).mkdir(exist_ok=True, parents=True)
 
@@ -130,24 +130,24 @@ class OrderUserbotManager:
             
     async def create_new_process(self,new_worker_id): 
         process = await asyncio.create_subprocess_exec(
-            "python3", "worker.py", new_worker_id,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            stdin=asyncio.subprocess.DEVNULL
-        )
+               "python3", "worker.py", new_worker_id,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+                stdin=asyncio.subprocess.DEVNULL
+            )   
 
-        async def stream_output(stream, prefix=""):
-            while True:
-                line = await stream.readline()
-                if not line:
-                    break
-                print(f"{prefix}{line.decode().rstrip()}")
+        # async def stream_output(stream, prefix=""):
+        #     while True:
+        #         line = await stream.readline()
+        #         if not line:
+        #             break
+        #         print(f"{prefix}{line.decode().rstrip()}")
 
-        # Read stdout and stderr concurrently
-        await asyncio.gather(
-            stream_output(process.stdout, prefix=f"[{new_worker_id} STDOUT] "),
-            stream_output(process.stderr, prefix=f"[{new_worker_id} STDERR] ")
-        )
+        # # Read stdout and stderr concurrently
+        # await asyncio.gather(
+        #     stream_output(process.stdout, prefix=f"[{new_worker_id} STDOUT] "),
+        #     stream_output(process.stderr, prefix=f"[{new_worker_id} STDERR] ")
+        # )
 
         await process.wait()
         
@@ -242,7 +242,8 @@ class OrderUserbotManager:
                         if not content.strip(): continue
                     try:
                         post_data = json.loads(content)
-                        userbots = post_data.get("userbots") or list(Accounts.find({"syncBot": {"$ne": True}}))
+                        accountsCount = post_data.get("taskPerformCount")
+                        userbots = post_data.get("userbots") or list(Accounts.find({"syncBot": {"$ne": True}}).limit(accountsCount))
                         safe_create_task(self.bulk_order(userbots, post_data))
                         logger.info(f"[SyncBot] Processed post task: {filename}, {len(userbots)} userbots")
                     except Exception as e: logger.error(f"[SyncBot] Error processing {filename}: {e}")

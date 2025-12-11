@@ -171,6 +171,7 @@ async def joinIfNot(client: Client, chatID, inviteLink):
         logger.debug(f"<b>[{userData.phone_number}]</b>: Flood wait {x.value} on joining <a href='{inviteLink}'>{chatID}</a>")
         await asyncio.sleep(x.value)
         return await joinIfNot(client,chatID,inviteLink)
+    except UsernameNotOccupied: return False
     except Exception as e:
         logger.error(f"Error in joinIfNot [{inviteLink}]: {e}",)
         return False

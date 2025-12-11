@@ -32,7 +32,7 @@ async def onBoosterLink(_:Client,message:Message):
     if not channelData or not channelData.get("isBoosterEnabled",False): raise ContinuePropagation()
     
     messageID = int(path_segments[1])
-    inviteLink = channelData.get("inviteLink")
+    inviteLink = f"@{channelID}" if not is_number(channelID) else channelData.get("inviteLink")
     postLink = f"https://t.me/c/{str(channelID).replace("-100","")}/{messageID}"
     tasksData = channelData.get("services",[])
     if not len(tasksData):  return
@@ -92,7 +92,6 @@ async def onBoosterForward(_:Client,message:Message):
     inviteLink = f"@{chatUsername}" if chatUsername else channelData.get("inviteLink")
     messageID = message.forward_from_message_id 
     postLink = f"https://t.me/c/{str(channelID).replace("-100","").replace("-","") if not chatUsername else chatUsername}/{messageID}"
-    # print(postLink)
     tasksData = channelData.get("services",[])
     if not len(tasksData):  return
     reactionEmojis = channelData.get('reactionsType', [])

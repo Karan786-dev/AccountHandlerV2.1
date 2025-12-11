@@ -31,7 +31,7 @@ class Worker:
             session_string=self.accountData.get("session_string"),
             api_id=API_ID,
             api_hash=API_HASH,
-            max_message_cache_size=100,
+            max_message_cache_size=0,
             max_concurrent_transmissions=1
         )
 
@@ -136,7 +136,7 @@ class Worker:
     async def reloadChannelsData(self):
         while True: 
             
-            await asyncio.sleep(2*60*60)
+            await asyncio.sleep(5*60*60)
             joined = []
             muted = []
             try: 

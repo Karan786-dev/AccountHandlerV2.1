@@ -46,8 +46,8 @@ class Bot(Client):
             name=SESSION+"/mainBot",
             api_id=API_ID,
             api_hash=API_HASH,
-            bot_token=BOT_TOKEN,
-            workers=500,
+                bot_token=BOT_TOKEN,
+                workers=50,
             plugins={"root": "plugins"},
         )
 
