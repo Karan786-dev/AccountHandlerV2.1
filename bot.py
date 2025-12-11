@@ -217,7 +217,6 @@ async def changeAllAccountsName():
 
 
 
-
 try:
     app = Bot()
     app.run()

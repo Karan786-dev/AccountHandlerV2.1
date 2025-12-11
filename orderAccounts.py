@@ -174,13 +174,13 @@ class OrderUserbotManager:
         taskPerformCount=random.choice(task["taskPerformCount"]) if isinstance(task["taskPerformCount"],list) else task["taskPerformCount"]
         taskID=generateRandomString(10)
         task["taskID"]=taskID
-        self.tasksData[taskID]=task
+        # self.tasksData[taskID]=task
         taskID_2=task.get("taskID_2",None) if isOldPending else await self.saveTaskData(task,userbots)
         for userbot in userbots:
             if userbot.get("syncBot") or userbot.get("helperBot"): continue
-            if not (taskID in self.tasksData):
-                logger.error(f"<b>Task Deleted: </b><code>{taskID}</code>")
-                break
+            # if not (taskID in self.tasksData):
+            #     logger.error(f"<b>Task Deleted: </b><code>{taskID}</code>")
+            #     break
             taskLimit+=1
             rest_time=task.get("restTime",0)
             if isinstance(rest_time,list) and len(rest_time)>1:
@@ -188,7 +188,7 @@ class OrderUserbotManager:
             elif isinstance(rest_time,list) and len(rest_time)==1:
                 rest_time=rest_time[0]
             if rest_time!=0:
-                self.tasksData[taskID]["canStop"]=True
+                # self.tasksData[taskID]["canStop"]=True
                 try: await asyncio.sleep(float(rest_time))
                 except asyncio.CancelledError: pass
                 await self.add_task(
@@ -200,7 +200,7 @@ class OrderUserbotManager:
                     },
                 )
             elif rest_time==0:
-                self.tasksData[taskID]["canStop"]=False
+                # self.tasksData[taskID]["canStop"]=False
                 tasksGathering.append(self.add_task(
                     phone_number=userbot["phone_number"],
                     task={
