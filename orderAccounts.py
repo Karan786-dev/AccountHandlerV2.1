@@ -27,7 +27,7 @@ import subprocess
 import shutil
 
 
-MAX_ACCOUNTS_PER_PROCESS = 200
+MAX_ACCOUNTS_PER_PROCESS = 100
 
 Path(ACCOUNT_FOLDER).mkdir(exist_ok=True, parents=True)
 
@@ -209,7 +209,17 @@ class OrderUserbotManager:
                     }))
             if taskLimit>=int(taskPerformCount):
                 break
-        await asyncio.gather(*tasksGathering)
+
+        #Limit Instant tasks to use less resources
+        batch = []
+        for c in tasksGathering:
+            batch.append(asyncio.create_task(c))
+            if len(batch) == 100:
+                await asyncio.gather(*batch)
+                batch.clear()
+        #Remaining Tasks
+        if batch:
+            await asyncio.gather(*batch)
         await self.deleteTasksJsonData(taskID_2)
         
     async def add_task(self, phone_number, task):
