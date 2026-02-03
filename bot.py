@@ -15,6 +15,7 @@ from dailyActivity import *
 import os
 import shutil
 import resource
+from pinger import client as pingerBot
 
 soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
 if soft < hard:
@@ -64,8 +65,8 @@ class Bot(Client):
             # if restart_pending_activity_tasks: asyncio.create_task(restart_pendingLeaves())
             # asyncio.create_task(startRandomActivityInChannels())
             asyncio.create_task(self.startBooster())
+            asyncio.create_task(pingerBot.start())
             syncBotData = Accounts.find_one({"syncBot":True})
-            
             if not syncBotData: return await logChannel("<b>🚫 Syncer Bot not Available.</b>")
             safe_create_task(UserbotManager.watch_posts_folder())
             UserbotManager.start_worker_processes()
