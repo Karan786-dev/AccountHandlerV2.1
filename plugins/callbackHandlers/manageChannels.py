@@ -1,6 +1,6 @@
 from pyrogram import Client , filters
 from pyrogram.types import CallbackQuery , InlineKeyboardButton ,InlineKeyboardMarkup
-from markups import manageChannelMarkup , viewChannelManage
+from markups import manageChannelMarkup , viewChannelManage , editKeywords
 from ..responses.responseFunctions import createResponse
 from config import cancelKeyboard
 from database import Accounts , Channels
@@ -85,4 +85,31 @@ async def removeChannelHanlder(_,query:CallbackQuery):
     await query.answer("Channel Removed")
     text , keyboard = await manageChannelMarkup(int(1))
     await query.message.edit(text,reply_markup=keyboard)
+
+@Client.on_callback_query(filters.regex(r'^/restricted_keys'))
+async def restrictedKeysHandler(bot: Client,query:CallbackQuery):
+    channelID = query.data.split(" ")[1]
+    text , keyboard = await editKeywords(int(channelID))
+    await query.message.edit(text,reply_markup=keyboard)
+
+@Client.on_callback_query(filters.regex(r'^/cleanKeys'))
+async def cleanKeysHandler(bot: Client,query: CallbackQuery):
+    channelID = query.data.split(" ")[1]
+    Channels.update_one({"channelID":int(channelID)},{"$set":{"restricted_keys":[]}})
+    text , keyboard = await editKeywords(int(channelID))
+    await query.message.edit(text,reply_markup=keyboard)
+
+@Client.on_callback_query(filters.regex(r'^/editKeys'))
+async def editKeysHandler(bot: Client,query: CallbackQuery):
+    channelID = query.data.split(" ")[1]
+    channelData = Channels.find_one({"channelID":int(channelID)})
+    rKeys: list = channelData.get("restricted_keys",[])
+    await query.message.edit("<b>Send keywords for post you want to ignore</b>\n\n<code>You can use ',' to separate keywords</code>")
+    answer: str = (await bot.listen(filters.text | filters.private,user_id=query.from_user.id)).text
+    nKeys: list = answer.split(",")
+    aKeys: list[str] = rKeys + nKeys
+    updatedKeys = [i.lower().strip() for i in aKeys]
+    Channels.update_one({"channelID":int(channelID)},{"$set":{"restricted_keys":updatedKeys}})
+    text , keyboard = await editKeywords(int(channelID))
+    await query.message.reply(text,reply_markup=keyboard)
     
