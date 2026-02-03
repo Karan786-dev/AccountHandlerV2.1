@@ -326,6 +326,7 @@ async def viewChannelManage(channelID, channelData=0):
             InlineKeyboardButton(f"➕ Add Days",f"/add_days {channelID}")],
             [InlineKeyboardButton(f"🔒 {"Enable" if not spamProtection else "Disable"} Spam Protection", callback_data=f"/toggle_spam_protection {channelID}")],
             [InlineKeyboardButton("⚙️ Auto Services", callback_data=f"/channelServices {channelID}")],
+            [InlineKeyboardButton("🚫 Restricted Keyworks",callback_data=f"/restricted_keys {channelID}")],
             [InlineKeyboardButton("🗑 Remove Channel", callback_data=f"/removeChannel {channelID}")],
             [InlineKeyboardButton("🔙 Back", callback_data="/manageChannels 1")]
         ]
@@ -565,3 +566,22 @@ async def getAutoVotesMarkup(channelID):
         
     return text,keyboard
     
+
+
+async def editKeywords(channelID:int):
+    channelData = Channels.find_one({"channelID":int(channelID)})
+    rKeys: list = channelData.get("restricted_keys",[])
+    text = f"""
+<b>🔑 Restricted Keyworrds:</b> <code>{channelData.get("title")}</code>
+
+<pre>{", ".join(rKeys)}</pre>
+"""
+    if not len(rKeys): text = f"<b>🔎 No Keywords found: {channelData.get("title")}</b>"
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("✏️ Add",f"/editKeys {channelID}")],
+            [InlineKeyboardButton("🗑 Clean",f"/cleanKeys {channelID}")],
+            [InlineKeyboardButton("<- Back",f"/viewChannel {channelID}")]
+        ]
+    )
+    return text , keyboard
