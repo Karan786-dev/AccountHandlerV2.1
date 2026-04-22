@@ -91,8 +91,9 @@ async def manuallyChangeAutoServiceDelay(_,message:Message):
 @Client.on_message(filters.private)
 async def manuallyChangeAutoServiceCount(_,message:Message):
     if not checkIfTarget(message.from_user.id,"manuallyChangeAutoServiceCount"): raise ContinuePropagation()
-    delayCount = message.text
-    if not is_number(delayCount): return await message.reply("</b>🚫 Invalid Valid:</b> Make Sure To Enter Valid Integer")
+    delayCount = message.text.split("-")
+    for i in delayCount: 
+        if not is_number(i): return await message.reply("</b>🚫 Invalid Valid:</b> Make Sure To Enter Valid Integer")
     responsesData = getResponse(message.from_user.id).get("payload")
     channelID = responsesData.get("channelID")
     task = responsesData.get("task")

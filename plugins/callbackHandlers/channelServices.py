@@ -96,7 +96,7 @@ async def changeVoiceCountHandler(_:Client,query:CallbackQuery):
     channelID = int(param[1])
     if count == 'Manual': 
         await query.message.delete()
-        await query.message.reply("<b>Please enter count of work</b>",reply_markup=cancelKeyboard)
+        await query.message.reply("<b>Please enter count of work.\n\n</b><b>Random</b>: To Randomize the count enter minimum and maximum delay like 1-10",reply_markup=cancelKeyboard)
         return createResponse(query.from_user.id,"manuallyChangeAutoServiceCount",{"task":"voice","channelID":channelID})
     Channels.update_one({"channelID":channelID},{"$set":{"voiceCount":int(count)}})
     text , keyboard = await manageChannelServices(channelID)
@@ -109,7 +109,7 @@ async def changeViewsCount(_,query:CallbackQuery):
     channelID = int(param[1])
     if count == 'Manual': 
         await query.message.delete()
-        await query.message.reply("<b>Please enter count of work</b>",reply_markup=cancelKeyboard)
+        await query.message.reply("<b>Please enter count of work.\n\n</b><b>Random</b>: To Randomize the count enter minimum and maximum delay like 1-10",reply_markup=cancelKeyboard)
         return createResponse(query.from_user.id,"manuallyChangeAutoServiceCount",{"task":"views","channelID":channelID})
     Channels.update_one({"channelID":channelID},{"$set":{"viewCount":int(count)}})
     text , keyboard = await manageChannelServices(channelID)
@@ -122,7 +122,7 @@ async def changeReactionCount(_,query:CallbackQuery):
     channelID = int(param[1])
     if count == 'Manual': 
         await query.message.delete()
-        await query.message.reply("<b>Please enter count of work</b>",reply_markup=cancelKeyboard)
+        await query.message.reply("<b>Please enter count of work.\n\n</b><b>Random</b>: To Randomize the count enter minimum and maximum delay like 1-10",reply_markup=cancelKeyboard)
         return createResponse(query.from_user.id,"manuallyChangeAutoServiceCount",{"task":"reactions","channelID":channelID})
     Channels.update_one({"channelID":channelID},{"$set":{"reactionsCount":int(count)}})
     text , keyboard = await manageChannelServices(channelID)

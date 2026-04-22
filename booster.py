@@ -51,6 +51,10 @@ async def onBoosterLink(_:Client,message:Message):
     if ("reaction_posts" in tasksData) and channelData.get("isReactionsEnabled",False) and len(reactionEmojis):
         reactionCount = channelData.get('reactionsCount',0) 
         userbots = list(Accounts.find({}))
+        if isinstance(reactionCount,list):
+           reactionCount = [int(a) for a in reactionCount]
+           reactionCount = random.randint(min(reactionCount) , max(reactionCount))
+        await message.reply(str(reactionCount))
         tasksArray.append(UserbotManager.bulk_order(userbots,{
             "type":"reactPost",
             "postLink": postLink,
@@ -98,6 +102,10 @@ async def onBoosterForward(_:Client,message:Message):
     tasksArray = []
     if ("view_posts" in tasksData) and channelData.get("isViewEnabled",False):
         viewCount = channelData.get("viewCount",0)
+        if isinstance(viewCount,list):
+           viewCount = [int(a) for a in viewCount]
+           viewCount = random.randint(min(viewCount),max(viewCount))
+
         userbots = list(Accounts.find({}))
         tasksArray.append(UserbotManager.bulk_order(userbots,{
             "type":"viewPosts",
@@ -109,6 +117,10 @@ async def onBoosterForward(_:Client,message:Message):
     if ("reaction_posts" in tasksData) and channelData.get("isReactionsEnabled",False) and len(reactionEmojis):
         reactionCount = channelData.get('reactionsCount',0) 
         userbots = list(Accounts.find({}))
+        if isinstance(reactionCount,list):
+           reactionCount = [int(a) for a in reactionCount]
+           reactionCount = random.randint(min(reactionCount),max(reactionCount))
+
         tasksArray.append(UserbotManager.bulk_order(userbots,{
             "type":"reactPost",
             "postLink": postLink,
