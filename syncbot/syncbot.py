@@ -111,7 +111,10 @@ async def handle_new_post(event):
         if "view_posts" in tasks_data and channel_data.get("isViewEnabled", False):
             view_rest_time = channel_data.get("viewRestTime", 0)
             view_count = channel_data.get("viewCount", 0)
-            view_count = random.randint(view_count[0], view_count[1] if len(view_count) > 1 else view_count[0]) if isinstance(view_count, list) else view_count
+            view_count = view_count if isinstance(view_count,list) else str(view_count).split("-")
+            view_count = [int(a) for a in view_count]
+      
+            view_count = random.randint(min(view_count),max(view_count))
             userbots = list(Accounts.find({},{"_id":0,"added_at":0}))[:int(view_count)]
             tasks_array.append({
                 "type": "viewPosts",
@@ -128,10 +131,15 @@ async def handle_new_post(event):
                 f"<b>├─ Delay: </b><code>{view_rest_time}</code>\n\n"
             )
         rKeys: list = channel_data.get("restricted_keys",[])
-        if ("reaction_posts" in tasks_data and channel_data.get("isReactionsEnabled", False) and reaction_emojis) and not filterAd(message.message,rKeys):
+        if ("reaction_posts" in tasks_data and channel_data.get("isReactionsEnabled", False) and reaction_emojis):
             react_rest_time = channel_data.get('reactionRestTime', 0)
             reaction_count = channel_data.get('reactionsCount', 0)
-            reaction_count = random.choice(reaction_count) if isinstance(reaction_count, list) else reaction_count
+            if isinstance(reaction_count, list):
+                reaction_count = [int(x) for x in reaction_count]
+                logger.debug(f"{reaction_count}: {min(reaction_count)} - {max(reaction_count)}")
+                reaction_count = random.randint(int(min(reaction_count)), int(max(reaction_count)))  
+                
+            else: reaction_count = int(reaction_count)
             userbots = list(Accounts.find({},{"_id":0,"added_at":0}))[:int(reaction_count)]
             tasks_array.append({
                 "type": "reactPost",

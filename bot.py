@@ -68,7 +68,7 @@ class Bot(Client):
             asyncio.create_task(pingerBot.start())
             syncBotData = Accounts.find_one({"syncBot":True})
             if not syncBotData: return await logChannel("<b>🚫 Syncer Bot not Available.</b>")
-            safe_create_task(UserbotManager.watch_posts_folder())
+            asyncio.create_task(UserbotManager.watch_posts_folder())
             UserbotManager.start_worker_processes()
             # asyncio.create_task(bulkJoinChannels())
             # asyncio.create_task(changeAllAccountsName())
