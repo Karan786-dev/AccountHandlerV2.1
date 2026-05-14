@@ -184,36 +184,53 @@ def clean_telegram_html(text):
     return re.sub(r'</?([a-zA-Z0-9]+)(\s[^>]*)?>',
                   lambda m: m.group(0) if m.group(1) in allowed_tags else '', text)
     
-async def logChannel(string, isError=False, keyboard=None, printLog=True):
+async def logChannel(string: str, isError=False, keyboard=None, printLog=True,isDocument=False,file_link=None):
     try:
         if LOGGING_CHANNEL:
+            
             safe_string = clean_telegram_html(string)
-            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-            data = {
-                    "chat_id": LOGGING_CHANNEL,
-                    "text": safe_string,
-                    "parse_mode": "HTML"
-                }
+            
             if keyboard: data["reply_markup"] = json.dumps(keyboard)
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=data) as response:
-                    data = await response.json()
-                    if not data.get("ok"):
-                        params = data.get("parameters")
-                        if params and params.get("retry_after"):
-                            return
-                        logger.error(f"Error From Api While Logging To Channel: {data}",)
-                    elif isError and data.get("result", {}).get("message_id"):
-                        message_id = data["result"]["message_id"]
-                        pin_url = f"https://api.telegram.org/bot{BOT_TOKEN}/pinChatMessage"
-                        pin_data = {
-                                "chat_id": LOGGING_CHANNEL,
-                                "message_id": message_id,
-                                "disable_notification": True
-                            }
-                        async with session.post(pin_url,json=pin_data) as pin_req:
-                            pin_req = await pin_req.json()
-                            if not pin_req.ok: logger.error(f"Failed to pin message: {pin_req.text}",)
+                if isDocument and file_link:
+                    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
+                    file = open(file_link, "rb")
+                    data = {
+                        "chat_id": LOGGING_CHANNEL,
+                        "caption": safe_string,
+                        "parse_mode": 'HTML',
+                    }
+                    form = aiohttp.FormData()
+                    form.add_field("chat_id", str(LOGGING_CHANNEL))
+                    form.add_field("caption", safe_string)
+                    form.add_field("parse_mode", "HTML")
+                    form.add_field("document", file)
+                    response = await session.post(url,data=form)
+                else:
+                    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+                    data = {
+                            "chat_id": LOGGING_CHANNEL,
+                            "text": safe_string,
+                            "parse_mode": "HTML"
+                        }
+                    response = await session.post(url,json=data)
+                data = await response.json()
+                if not data.get("ok"):
+                    params = data.get("parameters")
+                    if params and params.get("retry_after"):
+                        return
+                    logger.error(f"Error From Api While Logging To Channel: {data}",)
+                elif isError and data.get("result", {}).get("message_id"):
+                    message_id = data["result"]["message_id"]
+                    pin_url = f"https://api.telegram.org/bot{BOT_TOKEN}/pinChatMessage"
+                    pin_data = {
+                            "chat_id": LOGGING_CHANNEL,
+                            "message_id": message_id,
+                            "disable_notification": True
+                        }
+                    async with session.post(pin_url,json=pin_data) as pin_req:
+                        pin_req = await pin_req.json()
+                        if not pin_req.ok: logger.error(f"Failed to pin message: {pin_req.text}",)
     except Exception as e:
         logger.error(f"Error While logging: {e}",)
     if printLog:
@@ -475,6 +492,15 @@ async def getAccountsToJoin(channelID,limit):
         query = {"joined": {"$ne": channelID},"syncBot":{"$exists":False},"helperBot":{"$exists":False}}
         if limit: accounts = list(Chats.find(query).limit(limit))
         else: accounts = list(Chats.find(query))
+        
+        # Number can be start with + sign not. So we will check for both cases 
+        allNumber = [f"{chat.get("phone_number").replace('+', '')}" for chat in accounts]
+        allNumber.extend([
+            f"+{number}"
+            for number in allNumber
+        ])
+        
+        accounts = list(Accounts.find({"phone_number": {"$in": allNumber},"syncBot":{"$exists":False},"helperBot":{"$exists":False}}))
         return accounts
     except Exception as e:
         logger.error(f"Error in getAccountsToJoin: {e}")
@@ -483,9 +509,18 @@ async def getAccountsToJoin(channelID,limit):
 async def getAccountsToLeave(channelID,limit):
     try:
         accounts = []
-        query = {"joined": channelID,"syncBot":{"$exists":False},"helperBot":{"$exists":False}}
+        query = {"joined": int(channelID),"syncBot":{"$exists":False},"helperBot":{"$exists":False}}
         if limit: accounts = list(Chats.find(query).limit(limit))
         else: accounts = list(Chats.find(query))
+        
+        # Number can be start with + sign not. So we will check for both cases 
+        allNumber = [f"{chat.get("phone_number").replace('+', '')}" for chat in accounts]
+        allNumber.extend([
+            f"+{number}"
+            for number in allNumber
+        ])
+        
+        accounts = list(Accounts.find({"phone_number": {"$in": allNumber},"syncBot":{"$exists":False},"helperBot":{"$exists":False}}))
         return accounts
     except Exception as e:
         logger.error(f"Error in getAccountsToLeave: {e}")
@@ -497,6 +532,15 @@ async def getAccountsToMute(channelID,limit):
         query = {"muted": {"$ne": channelID},"syncBot":{"$exists":False},"helperBot":{"$exists":False}}
         if limit: accounts = list(Chats.find(query).limit(limit))
         else: accounts = list(Chats.find(query))
+        
+        # Number can be start with + sign not. So we will check for both cases 
+        allNumber = [f"{chat.get("phone_number").replace('+', '')}" for chat in accounts]
+        allNumber.extend([
+            f"+{number}"
+            for number in allNumber
+        ])
+        
+        accounts = list(Accounts.find({"phone_number": {"$in": allNumber},"syncBot":{"$exists":False},"helperBot":{"$exists":False}}))
         return accounts
     except Exception as e:
         logger.error(f"Error in getAccountsToMute: {e}")
@@ -508,6 +552,15 @@ async def getAccountsToUnmute(channelID,limit):
         query = {"muted": channelID,"syncBot":{"$exists":False},"helperBot":{"$exists":False}}
         if limit: accounts = list(Chats.find(query).limit(limit))
         else: accounts = list(Chats.find(query))
+        
+        # Number can be start with + sign not. So we will check for both cases 
+        allNumber = [f"{chat.get("phone_number").replace('+', '')}" for chat in accounts]
+        allNumber.extend([
+            f"+{number}"
+            for number in allNumber
+        ])
+        
+        accounts = list(Accounts.find({"phone_number": {"$in": allNumber},"syncBot":{"$exists":False},"helperBot":{"$exists":False}}))
         return accounts
     except Exception as e:
         logger.error(f"Error in getAccountsToUnmute: {e}")
@@ -515,3 +568,28 @@ async def getAccountsToUnmute(channelID,limit):
     
 
 def filterAd(text: str,keys) -> bool: return any(keyword.lower() in text.lower() for keyword in keys)
+
+import csv
+def save_data_to_csv(title: list, data: list, file_name: str = None) -> str:
+    filePath = f"tmp/{file_name or generateRandomString(7)}.csv"
+    with open(filePath, "w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(title)
+
+        for index, row in enumerate(data, start=1):
+            if title[0] == "S.No":
+                writer.writerow([index] + row)  # ✅ NO mutation
+            else:
+                writer.writerow(row)
+    return filePath
+
+if __name__ == "__main__": 
+    title = ['S.No','Join','Left','Mute','Unmute']
+    dataList = [
+        [9878123956,102938473,2983434,1029348],
+        [9878123956,102938473,2983434,1029348],
+        [9878123956,102938473,2983434,1029348],
+        [9878123956,102938473,2983434,1029348],
+    ]
+    
+    print(save_data_to_csv(title,dataList))

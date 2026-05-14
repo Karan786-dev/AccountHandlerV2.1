@@ -136,7 +136,6 @@ async def handle_new_post(event):
             reaction_count = channel_data.get('reactionsCount', 0)
             if isinstance(reaction_count, list):
                 reaction_count = [int(x) for x in reaction_count]
-                logger.debug(f"{reaction_count}: {min(reaction_count)} - {max(reaction_count)}")
                 reaction_count = random.randint(int(min(reaction_count)), int(max(reaction_count)))  
                 
             else: reaction_count = int(reaction_count)
@@ -333,7 +332,7 @@ import datetime, gc
 
 async def heartbeat():
     while True:
-        logger.info(f"✅ Heartbeat: Bot alive at {datetime.datetime.now()}")
+        # logger.info(f"✅ Heartbeat: Bot alive at {datetime.datetime.now()}")
         gc.collect()  # Help free up memory
         await asyncio.sleep(60)  # Every 5 minutes
 
