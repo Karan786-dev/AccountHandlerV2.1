@@ -150,7 +150,7 @@ def random_delays(num_accounts, total_minutes=20*60, spread=0.5):
     avg_delay = total_minutes / num_accounts
     min_delay = avg_delay * (1 - spread)
     max_delay = avg_delay * (1 + spread)
-    return [0,0]
+    # return [0,0]
     return [min_delay*60, max_delay*60]
 
 MAX_CONCURRENT_CHANNELS = 50  # Will Manage this number of channels at one time
