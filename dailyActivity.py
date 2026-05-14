@@ -7,6 +7,7 @@ import asyncio
 import random
 import os
 import json
+import pytz
 import datetime
 
 os.makedirs(ACTIVITY_DATA_FOLDER, exist_ok=True)
@@ -46,7 +47,7 @@ async def doActivity(channelID):
         # Start join operation
         accountsToJoin = await getAccountsToJoin(channelID,joinCount)
         randomJoinDelay = random_delays(len(accountsToJoin))
-        log_activity(channelID,f"Joining {len(accountsToJoin)} accounts to {channelTitle}: Delays: {randomJoinDelay}")
+        log_activity(channelID,f"Joining {len(accountsToJoin)} accounts to {channelTitle}: Delays: {randomJoinDelay} , List: {[a.get('phone_number') for a in accountsToJoin]}")
         join_task = UserbotManager.bulk_order(accountsToJoin, {
             "type": "join_channel",
             "channels":[channelLink],
@@ -69,11 +70,11 @@ async def doActivity(channelID):
             )
             name_tasks.append(name_task)
             Accounts.update_one({"phone_number":i.get("phone_number")},{"$set":{"name":newName}})
-
+        await asyncio.gather(*name_tasks)
         # Start leave operation
         accountsToLeave = await getAccountsToLeave(channelID,leaveCount)
         randomLeaveDelay = random_delays(len(accountsToLeave))
-        log_activity(channelID,f"Leaving {len(accountsToLeave)} accounts from {channelTitle}: Delays: {randomLeaveDelay}")
+        log_activity(channelID,f"Leaving {len(accountsToLeave)} accounts from {channelTitle}: Delays: {randomLeaveDelay} , List: {[a.get('phone_number') for a in accountsToLeave]}")
         leave_task = UserbotManager.bulk_order(accountsToLeave, {
             "type": "leave_channel",
             "channels":[channelID],
@@ -84,7 +85,7 @@ async def doActivity(channelID):
         # Start mute operation
         accountsToMute = await getAccountsToMute(channelID,muteCount)
         randomMuteDelay = random_delays(len(accountsToMute))
-        log_activity(channelID,f"Muting {len(accountsToMute)} accounts in {channelTitle}: Delays: {randomMuteDelay}: Accounts List- {[i.get('phone_number') for i in accountsToMute]}")
+        log_activity(channelID,f"Muting {len(accountsToMute)} accounts in {channelTitle}: Delays: {randomMuteDelay} , List: {[a.get('phone_number') for a in accountsToMute]}")
         mute_task = UserbotManager.bulk_order(accountsToMute, {
             "type":"changeNotifyChannel",
             "chatID":channelID,
@@ -97,7 +98,7 @@ async def doActivity(channelID):
         # Start unmute operation
         accountsToUnmute = await getAccountsToUnmute(channelID,unmuteCount)
         randomUnmuteDelay = random_delays(len(accountsToUnmute))
-        log_activity(channelID,f"Unmuting {len(accountsToUnmute)} accounts in {channelTitle}: Delays: {randomUnmuteDelay} ")
+        log_activity(channelID,f"Unmuting {len(accountsToUnmute)} accounts in {channelTitle}: Delays: {randomUnmuteDelay} , List: {[a.get('phone_number') for a in accountsToUnmute]}")
         unmute_task = UserbotManager.bulk_order(accountsToUnmute,{
             "type":"changeNotifyChannel",
             "chatID":channelID,
@@ -107,16 +108,35 @@ async def doActivity(channelID):
             "duration": 0
         })
 
-        # Run all operations concurrently and wait for completion
+        
+        titles = ["S.No","Joining","Leaving","Muting","Unmuting"]
+        highest_accounts_number = max(
+            len(accountsToJoin),
+            len(accountsToLeave),
+            len(accountsToMute),
+            len(accountsToUnmute)
+        )
+
+        dataList = []
+
+        for i in range(highest_accounts_number):
+            dataRowList = [
+                accountsToJoin[i].get("phone_number") if i < len(accountsToJoin) else "",
+                accountsToLeave[i].get("phone_number") if i < len(accountsToLeave) else "",
+                accountsToMute[i].get("phone_number") if i < len(accountsToMute) else "",
+                accountsToUnmute[i].get("phone_number") if i < len(accountsToUnmute) else "",
+            ]
+            dataList.append(dataRowList)
+        todayDate = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
+        convertedCsvFile = save_data_to_csv(titles,dataList,f"{channelTitle}-{todayDate.date()}")
+        await logChannel(f"<b>Daily Activity Details: </b><code>[{channelTitle}]</code>",isDocument=True,file_link=convertedCsvFile)
+        os.remove(convertedCsvFile)
         tasks = [join_task]
-        tasks.extend(name_tasks)
         tasks.extend([leave_task, mute_task, unmute_task])
         
         # Filter out None tasks (in case some operations had no accounts to process)
         tasks = [t for t in tasks if t is not None]
-        
-        if tasks: 
-            for task in tasks: asyncio.create_task(task)
+        await asyncio.gather(*tasks)
             
     except Exception as e:
         log_activity(channelID, f"Error in channel activity: {str(e)}")
@@ -130,10 +150,10 @@ def random_delays(num_accounts, total_minutes=20*60, spread=0.5):
     avg_delay = total_minutes / num_accounts
     min_delay = avg_delay * (1 - spread)
     max_delay = avg_delay * (1 + spread)
-    # return [1,1]
+    # return [0,0]
     return [min_delay*60, max_delay*60]
 
-MAX_CONCURRENT_CHANNELS = 50  # Adjust this value based on your needs
+MAX_CONCURRENT_CHANNELS = 50  # Will Manage this number of channels at one time
 channel_semaphore = asyncio.Semaphore(MAX_CONCURRENT_CHANNELS)
 
 async def process_channel(channel):
@@ -154,9 +174,9 @@ async def startRandomActivityInChannels():
 async def main():
     while True:
         await doActivity(-1003060090488)
-        await asyncio.sleep(5*60)
+        # await asyncio.sleep(5*60)
         break
 
 
-# if __name__ == "__main__":
-#     asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
