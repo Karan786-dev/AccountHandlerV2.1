@@ -219,17 +219,14 @@ async def handle_new_post(event):
 @sync_bot.on(events.Raw())
 async def handle_voice_chats(event):
     update: UpdateNewChannelMessage = event
-    print("Voice chat update received",type(update))
     if (not isinstance(update, UpdateGroupCall) and not isinstance(update,UpdateNewChannelMessage)): return
     if isinstance(update.call, GroupCallDiscarded): return
-    print(f"Processing voice chat update for call ID: {update.call.id}")
     channel_id = update.chat_id
     channel_id = int("-100" + str(channel_id)) if not str(channel_id).startswith("-") else int(channel_id)
     call_id = update.call.id
     access_hash = update.call.access_hash
     channel = Channels.find_one({"channelID": channel_id})
     if not channel:  return
-    logger.debug(f"Voice chat detected in channel: {channel.get('title', 'Unknown')} (ID: {channel_id})")
 
     if update.call.participants_count and str(update.call.version) != "1": return
     services = channel.get("services", [])
