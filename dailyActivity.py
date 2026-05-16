@@ -25,36 +25,22 @@ def log_activity(channelID, message):
 async def doActivity(channelID):
     log_activity(channelID,"Channel Activity Started")
     activityData = ActivityChannels.find_one({"channelID": int(channelID)})
-    minJoin = activityData.get("minimumJoin", 0)
-    maxJoin = activityData.get("maximumJoin", 0)
+    minmaxJoin = [activityData.get("minimumJoin", 0),activityData.get("maximumJoin", 0)]
     channelLink = activityData.get("inviteLink", None)
     channelTitle = activityData.get("title", None)
     channelID = activityData.get("channelID")
-    minLeave = activityData.get("minimumLeave", 0)
-    maxLeave = activityData.get("maximumLeave", 0)
-    minMute = activityData.get("minimumMute", 0)
-    maxMute = activityData.get("maximumMute", 0)
-    minUnmute = activityData.get("minimumUnmute", 0)
-    maxUnmute = activityData.get("maximumUnmute", 0)
+    minmaxLeave = [activityData.get("minimumLeave", 0),activityData.get("maximumLeave", 0)]
+    minmaxMute = [activityData.get("minimumMute", 0),activityData.get("maximumMute", 0)]
+    minmaxUnmute = [activityData.get("minimumUnmute", 0),activityData.get("maximumUnmute", 0)]
     
-    joinCount = random.randint(minJoin, maxJoin)
-    leaveCount = random.randint(minLeave, maxLeave)
-    muteCount = random.randint(minMute,maxMute)
-    unmuteCount = random.randint(minUnmute,maxUnmute)
+    joinCount = random.randint(min(minmaxJoin), max(minmaxJoin))
+    leaveCount = random.randint(min(minmaxLeave), max(minmaxLeave))
+    muteCount = random.randint(min(minmaxMute), max(minmaxMute))
+    unmuteCount = random.randint(min(minmaxUnmute), max(minmaxUnmute))
 
     # Process operations concurrently but with proper error handling
     try:
-        # Start join operation
-        accountsToJoin = await getAccountsToJoin(channelID,joinCount)
-        randomJoinDelay = random_delays(len(accountsToJoin))
-        log_activity(channelID,f"Joining {len(accountsToJoin)} accounts to {channelTitle}: Delays: {randomJoinDelay} , List: {[a.get('phone_number') for a in accountsToJoin]}")
-        join_task = UserbotManager.bulk_order(accountsToJoin, {
-            "type": "join_channel",
-            "channels":[channelLink],
-            "restTime":randomJoinDelay,
-            "taskPerformCount":joinCount
-        })
-
+        
         # Start name changes
         name_tasks = []
         for i in accountsToJoin:
@@ -71,6 +57,18 @@ async def doActivity(channelID):
             name_tasks.append(name_task)
             Accounts.update_one({"phone_number":i.get("phone_number")},{"$set":{"name":newName}})
         await asyncio.gather(*name_tasks)
+        
+        # Start join operation
+        accountsToJoin = await getAccountsToJoin(channelID,joinCount)
+        randomJoinDelay = random_delays(len(accountsToJoin))
+        log_activity(channelID,f"Joining {len(accountsToJoin)} accounts to {channelTitle}: Delays: {randomJoinDelay} , List: {[a.get('phone_number') for a in accountsToJoin]}")
+        join_task = UserbotManager.bulk_order(accountsToJoin, {
+            "type": "join_channel",
+            "channels":[channelLink],
+            "restTime":randomJoinDelay,
+            "taskPerformCount":joinCount
+        })
+
         # Start leave operation
         accountsToLeave = await getAccountsToLeave(channelID,leaveCount)
         randomLeaveDelay = random_delays(len(accountsToLeave))
@@ -153,7 +151,7 @@ def random_delays(num_accounts, total_minutes=20*60, spread=0.5):
     # return [0,0]
     return [min_delay*60, max_delay*60]
 
-MAX_CONCURRENT_CHANNELS = 50  # Will Manage this number of channels at one time
+MAX_CONCURRENT_CHANNELS = 5  # Will Manage this number of channels at one time
 channel_semaphore = asyncio.Semaphore(MAX_CONCURRENT_CHANNELS)
 
 async def process_channel(channel):
