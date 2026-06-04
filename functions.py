@@ -394,7 +394,7 @@ async def intercept_code_and_login(phone: str, existing_session_string: str, pas
         await testClient.start()
         await testClient.get_me()
         await testClient.stop()
-        logger.error(f"Session file created at: {session_path}")
+        # logger.error(f"Session file created at: {session_path}")
         return session_path
     else:
         logger.error(f"Sign-in may have succeeded, but session file not found at: {session_path}")
@@ -583,13 +583,24 @@ def save_data_to_csv(title: list, data: list, file_name: str = None) -> str:
                 writer.writerow(row)
     return filePath
 
-if __name__ == "__main__": 
-    title = ['S.No','Join','Left','Mute','Unmute']
-    dataList = [
-        [9878123956,102938473,2983434,1029348],
-        [9878123956,102938473,2983434,1029348],
-        [9878123956,102938473,2983434,1029348],
-        [9878123956,102938473,2983434,1029348],
-    ]
+async def create_backup_session_files_of_all_accounts():
+    try: 
+        accounts = list(Accounts.find({"syncBot":{"$exists":False},"helperBot":{"$exists":False}}))
+        for account in accounts:
+            already_backed_up = os.path.exists(os.path.join("backup_1", f"{account.get('phone_number')}.session"))
+            if already_backed_up: continue
+            phone_number = account.get("phone_number")
+            session_string = account.get("session_string")
+            password = account.get("password")
+            backupFolder = "backup_1"
+            try:
+                backup_file = await intercept_code_and_login(phone_number, session_string, password, backupFolder)
+            except Exception as e:
+                logger.error(f"Error creating backup for {phone_number}: {e}")
+                continue
+            if backup_file: logger.error(f"✅ Backup created for {phone_number} successfully!")
+            else: logger.error(f"❌ Error creating backup for {phone_number}")
+    except Exception as e: print(f"Error fetching accounts for backup: {e}")
+
+if __name__ == "__main__": asyncio.run(create_backup_session_files_of_all_accounts())
     
-    print(save_data_to_csv(title,dataList))
