@@ -119,12 +119,14 @@ class Worker:
                 for file in files:
                     path = os.path.join(tasks_folder, file)
                     # logger.debug(f"[{self.phone_number}]: {file}")
-                    async with aiofiles.open(path, "r") as f:
-                        content = await f.read()
-                    if not content.strip():
-                        continue
-                    task = json.loads(content)
-                    safe_create_task(self.add_task(task, path))
+                    try: 
+                        async with aiofiles.open(path, "r") as f:
+                            content = await f.read()
+                        if not content.strip():
+                            continue
+                        task = json.loads(content)
+                        safe_create_task(self.add_task(task, path))
+                    except Exception as error: logger.error(f"[{self.phone_number}]: Error {str(error)} while handling {path} files")
                     try: os.remove(path)
                     except FileNotFoundError: pass
             except FileNotFoundError: pass
@@ -192,6 +194,8 @@ class Worker:
             except: pass
             
             method = methods[task.get("type")]
+            # if task.get("dailyActivity",False):
+            #     await logChannel(f"[{phone_number}] Performing Daily Activity Task in {task.get('inviteLink',task.get("channels",task.get("chatID", None)))}: {task.get('type')}")
             await method(
                 phone_number=phone_number,
                 task=task,

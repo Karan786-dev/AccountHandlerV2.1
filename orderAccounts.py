@@ -176,6 +176,8 @@ class OrderUserbotManager:
         task["taskID"]=taskID
         # self.tasksData[taskID]=task
         taskID_2=task.get("taskID_2",None) if isOldPending else await self.saveTaskData(task,userbots)
+        # if task.get("dailyActivity",False):
+        #     print(f"Daily Activity Task: {task.get('type')} - {len(userbots)} accounts - {task.get('channels',task.get("chatID",None))} - {taskID_2}.json")
         for userbot in userbots:
             if userbot.get("syncBot") or userbot.get("helperBot"): continue
             # if not (taskID in self.tasksData):

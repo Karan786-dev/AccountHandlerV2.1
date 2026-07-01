@@ -16,6 +16,10 @@ SPAM_INTERVAL = 2
 
 
 
+@boosterBot.on_message(filters.command("start"))
+async def onStartCommand(_: Client,message: Message):
+    await message.reply("Hello World Am Active")
+
 @boosterBot.on_message(filters.text & filters.private)
 async def onBoosterLink(_:Client,message:Message):
     if not message.text.startswith("https://t.me/c/") and not message.text.startswith("https://t.me/"): raise ContinuePropagation()
@@ -45,7 +49,7 @@ async def onBoosterLink(_:Client,message:Message):
             "type":"viewPosts",
             "postLink": postLink,
             "restTime":0,
-            "taskPerformCount": int(viewCount),
+            "taskPerformCount": int(viewCount) if not isinstance(viewCount,list) else viewCount,
             "inviteLink": inviteLink
         }))
     if ("reaction_posts" in tasksData) and channelData.get("isReactionsEnabled",False) and len(reactionEmojis):
@@ -59,7 +63,7 @@ async def onBoosterLink(_:Client,message:Message):
             "type":"reactPost",
             "postLink": postLink,
             "restTime":0,
-            "taskPerformCount": int(reactionCount),
+            "taskPerformCount": int(reactionCount) if not isinstance(reactionCount,list) else reactionCount,
             "emoji":reactionEmojis,
             "inviteLink": inviteLink
         }))

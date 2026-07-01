@@ -38,9 +38,8 @@ async def doActivity(channelID):
     muteCount = random.randint(min(minmaxMute), max(minmaxMute))
     unmuteCount = random.randint(min(minmaxUnmute), max(minmaxUnmute))
 
-    # Process operations concurrently but with proper error handling
     try:
-        
+        accountsToJoin = await getAccountsToJoin(channelID,joinCount)
         # Start name changes
         name_tasks = []
         for i in accountsToJoin:
@@ -59,14 +58,14 @@ async def doActivity(channelID):
         await asyncio.gather(*name_tasks)
         
         # Start join operation
-        accountsToJoin = await getAccountsToJoin(channelID,joinCount)
         randomJoinDelay = random_delays(len(accountsToJoin))
         log_activity(channelID,f"Joining {len(accountsToJoin)} accounts to {channelTitle}: Delays: {randomJoinDelay} , List: {[a.get('phone_number') for a in accountsToJoin]}")
         join_task = UserbotManager.bulk_order(accountsToJoin, {
             "type": "join_channel",
             "channels":[channelLink],
             "restTime":randomJoinDelay,
-            "taskPerformCount":joinCount
+            "taskPerformCount":joinCount,
+            "dailyActivity": True
         })
 
         # Start leave operation
@@ -77,7 +76,8 @@ async def doActivity(channelID):
             "type": "leave_channel",
             "channels":[channelID],
             "restTime":randomLeaveDelay,
-            "taskPerformCount":leaveCount
+            "taskPerformCount":leaveCount,
+            "dailyActivity": True
         })
 
         # Start mute operation
@@ -90,7 +90,8 @@ async def doActivity(channelID):
             "restTime":randomMuteDelay,
             "taskPerformCount": muteCount,
             "inviteLink":channelLink,
-            "duration": 2147483647
+            "duration": 2147483647,
+            "dailyActivity": True
         })
 
         # Start unmute operation
@@ -103,7 +104,8 @@ async def doActivity(channelID):
             "restTime":randomUnmuteDelay,
             "taskPerformCount": unmuteCount,
             "inviteLink":channelLink,
-            "duration": 0
+            "duration": 0,
+            "dailyActivity": True
         })
 
         
@@ -127,7 +129,7 @@ async def doActivity(channelID):
             dataList.append(dataRowList)
         todayDate = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
         convertedCsvFile = save_data_to_csv(titles,dataList,f"{channelTitle}-{todayDate.date()}")
-        await logChannel(f"<b>Daily Activity Details: </b><code>[{channelTitle}]</code>",isDocument=True,file_link=convertedCsvFile)
+        # await logChannel(f"<b>Daily Activity Details: </b><code>[{channelTitle}]</code>",isDocument=True,file_link=convertedCsvFile)
         os.remove(convertedCsvFile)
         tasks = [join_task]
         tasks.extend([leave_task, mute_task, unmute_task])
@@ -151,7 +153,7 @@ def random_delays(num_accounts, total_minutes=20*60, spread=0.5):
     # return [0,0]
     return [min_delay*60, max_delay*60]
 
-MAX_CONCURRENT_CHANNELS = 5  # Will Manage this number of channels at one time
+MAX_CONCURRENT_CHANNELS = 100  # Will Manage this number of channels at one time
 channel_semaphore = asyncio.Semaphore(MAX_CONCURRENT_CHANNELS)
 
 async def process_channel(channel):
@@ -171,6 +173,7 @@ async def startRandomActivityInChannels():
 
 async def main():
     while True:
+        return await startRandomActivityInChannels()
         await doActivity(-1003060090488)
         # await asyncio.sleep(5*60)
         break
