@@ -53,5 +53,3 @@ Disk Usage: {disk}%
         except Exception as error: print(error)
 
         await asyncio.sleep(10*60)
-
-

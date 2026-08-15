@@ -9,7 +9,7 @@ from config import API_ID, API_HASH, USERBOT_SESSION
 
 MAX_CONCURRENT = 20
 CODE_WAIT_TIMEOUT = 120
-SESSION_DIR = USERBOT_SESSION
+SESSION_DIR = "sessions/alternative_sessions"
 os.makedirs(SESSION_DIR, exist_ok=True)
 
 async def intercept_code_and_login(phone: str, existing_session_string: str, password: str | None) -> dict:

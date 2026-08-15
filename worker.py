@@ -32,7 +32,8 @@ class Worker:
             api_id=API_ID,
             api_hash=API_HASH,
             max_message_cache_size=0,
-            max_concurrent_transmissions=1
+            max_concurrent_transmissions=1,
+            sleep_threshold=10
         )
 
     async def start(self):
@@ -226,9 +227,8 @@ class Worker:
             logger.error(f"Telegram Considering <b>{phone_number}</b> as Bot. <b>Account Removed</b>")
             Accounts.delete_one({"phone_number":str(phone_number)})
         except (ConnectionError,ConnectionAbortedError,OSError) as e:
-            # logger.critical(f"[{phone_number}] Fatal Connection Error: {e} — Restarting Client.")
             await self.restart_self()
-            await self.add_task()
+            await self.add_task(task=task, taskFile=taskFile)
         except (AuthKeyUnregistered,SessionRevoked,AuthKeyDuplicated) as e:
             await logChannel(f"Account Removed: {phone_number} Please login again: <pre>{str(e)}</pre>")
             Accounts.delete_one({"phone_number":str(phone_number)})

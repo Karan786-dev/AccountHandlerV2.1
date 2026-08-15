@@ -216,9 +216,9 @@ async def handle_new_post(event):
         raise error
 
 
-@sync_bot.on(events.Raw())
+@sync_bot.on(events.Raw(types=UpdateGroupCall))
 async def handle_voice_chats(event):
-    update: UpdateNewChannelMessage = event
+    update: UpdateGroupCall = event
     if (not isinstance(update, UpdateGroupCall) and not isinstance(update,UpdateNewChannelMessage)): return
     if isinstance(update.call, GroupCallDiscarded): return
     channel_id = update.chat_id

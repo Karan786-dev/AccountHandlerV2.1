@@ -255,10 +255,14 @@ class OrderUserbotManager:
                     try:
                         post_data = json.loads(content)
                         accountsCount = post_data.get("taskPerformCount")
-                        userbots = post_data.get("userbots") or list(Accounts.find({"syncBot": {"$ne": True}}).limit(accountsCount))
+                        if isinstance(accountsCount,list): 
+                            accountsCount = [int(i) for i in accountsCount]
+                            accountsCount = random.randint(min(accountsCount),max(accountsCount))
+                        userbots = post_data.get("userbots") or list(Accounts.find({"syncBot": {"$ne": True}}).limit(int(accountsCount)))
                         safe_create_task(self.bulk_order(userbots, post_data))
                         logger.info(f"[SyncBot] Processed post task: {filename}, {len(userbots)} userbots")
-                    except Exception as e: logger.error(f"[SyncBot] Error processing {filename}: {e}")
+                    except Exception as e: 
+                        logger.error(f"[SyncBot] Error processing {filename}: {e}")
                     
                     os.remove(filepath)
 
