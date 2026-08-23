@@ -417,10 +417,10 @@ def getRandomName():
 
     
         
-async def convert_pyrogram_to_telethon(session_name, password=None):
+async def convert_pyrogram_to_telethon(session_name, password=None,session_string=None):
     CODE_WAIT_TIMEOUT = 120
     print(session_name.replace(".session",""))
-    pyro = PyroClient(name=session_name.replace(".session",""), api_id=API_ID, api_hash=API_HASH)
+    pyro = PyroClient(name=session_name.replace(".session",""), api_id=API_ID, api_hash=API_HASH,session_string=session_string)
     loop = asyncio.get_event_loop()
     code_future = loop.create_future()
 

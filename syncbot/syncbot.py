@@ -29,7 +29,7 @@ loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 
 if not telethon_session_string: 
-    telethon_session_string = loop.run_until_complete(convert_pyrogram_to_telethon(f"../sessions/userbots/{session_name}", userbot_info.get("password", None)))
+    telethon_session_string = loop.run_until_complete(convert_pyrogram_to_telethon(f"../sessions/userbots/{session_name}", userbot_info.get("password", None),session_string=userbot_info.get("session_string")))
     # print(telethon_session_string)
     Accounts.update_one({"syncBot":True}, {"$set": {"telethon_session_string": telethon_session_string}})
 
