@@ -160,7 +160,7 @@ class Worker:
                 Chats.update_one({"phone_number":self.phone_number},{"$set":{"joined":joined,"muted":muted}},upsert=True)
 
                 logger.info(f"[{self.phone_number}]: Channels data is reloaded.")
-            except (ConnectionError,ConnectionAbortedError,OSError) as e: await self.restart_self()
+            except (ConnectionError,ConnectionAbortedError,OSError) as e: pass
             except (ChannelPrivate,ChannelInvalid,FloodWait): pass
             except Exception as e:
                 await logChannel(f"Failed to reload joined channels for {self.phone_number}: {e}")
@@ -188,12 +188,6 @@ class Worker:
             }
             client = self.client
             phone_number = self.phone_number
-            
-            if not client.is_connected: await client.connect()
-            
-            try: await client.send_message("me","ping!")
-            except: pass
-            
             method = methods[task.get("type")]
             # if task.get("dailyActivity",False):
             #     await logChannel(f"[{phone_number}] Performing Daily Activity Task in {task.get('inviteLink',task.get("channels",task.get("chatID", None)))}: {task.get('type')}")
@@ -227,10 +221,11 @@ class Worker:
             logger.error(f"Telegram Considering <b>{phone_number}</b> as Bot. <b>Account Removed</b>")
             Accounts.delete_one({"phone_number":str(phone_number)})
         except (ConnectionError,ConnectionAbortedError,OSError) as e:
-            await self.restart_self()
-            await self.add_task(task=task, taskFile=taskFile)
+            pass
+            # await self.restart_self()
+            # await self.add_task(task=task, taskFile=taskFile)
         except (AuthKeyUnregistered,SessionRevoked,AuthKeyDuplicated) as e:
-            await logChannel(f"Account Removed: {phone_number} Please login again: <pre>{str(e)}</pre>")
+            await logChannel(f"Account Removed: {phone_number} Please login again: <pre>{str(e)}</pre>\n\n<pre>{str(task)}</pre>")
             Accounts.delete_one({"phone_number":str(phone_number)})
             await self.stop()
         except (UserDeactivated,UserDeactivatedBan):

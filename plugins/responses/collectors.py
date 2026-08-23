@@ -782,7 +782,7 @@ async def createUserbotPhoneNumber(_, message):
     if oldAccountData:
         return await message.reply("<b>This account already exists in bot. Try sending another one</b>")
     deleteResponse(message.from_user.id)
-    userbotClient = Client(USERBOT_SESSION+"/"+phone_number,API_ID,API_HASH,in_memory=False)
+    userbotClient = Client(USERBOT_SESSION+"/"+phone_number,API_ID,API_HASH,in_memory=False,device_model="Account Handler")
     try:
         await userbotClient.connect()
         send_code = await userbotClient.send_code(phone_number=phone_number)
@@ -911,7 +911,7 @@ async def addSessionFile(message: Message,session_path=None):
         # print(f"Downlaoded file in {resu}")
     backupSessionFile = None #Need to access it in exception 
     try:
-        userbot = Client(name=session_path.replace(".session",""),api_id=API_ID, api_hash=API_HASH)
+        userbot = Client(name=session_path.replace(".session",""),api_id=API_ID, api_hash=API_HASH,device_model="Account Handler")
         await userbot.connect()
         me = await userbot.get_me()
         session_string = await userbot.export_session_string()

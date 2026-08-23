@@ -53,6 +53,7 @@ async def intercept_code_and_login(phone: str, existing_session_string: str, pas
         api_hash=API_HASH,
         workdir=SESSION_DIR,
         in_memory=False,
+        device_model="Account Handler"
     )
     try:
         await client_b.connect()

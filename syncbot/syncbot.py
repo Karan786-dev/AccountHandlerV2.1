@@ -33,8 +33,8 @@ if not telethon_session_string:
     # print(telethon_session_string)
     Accounts.update_one({"syncBot":True}, {"$set": {"telethon_session_string": telethon_session_string}})
 
-sync_bot = TelegramClient(StringSession(telethon_session_string), API_ID, API_HASH)
-pyro_bot = Client(name=USERBOT_SESSION +"/" + session_name,api_id=API_ID, api_hash=API_HASH, session_string=pyrogram_session_string, workdir=USERBOT_SESSION)
+sync_bot = TelegramClient(StringSession(telethon_session_string), API_ID, API_HASH,device_model="Account Handler - Syncbot")
+pyro_bot = Client(name=USERBOT_SESSION +"/" + session_name,api_id=API_ID, api_hash=API_HASH, session_string=pyrogram_session_string, workdir=USERBOT_SESSION,device_model="Account Handler - Syncbot")
 
 Path("syncbot/posts").mkdir(exist_ok=True)
 message_ids_processed = {}

@@ -267,7 +267,7 @@ async def addAccountWithSessionFile(phoneNumber,accountData):
         return False
     
     try:
-        userbot = Client(sessionFile.replace(".session",""),api_id=API_ID, api_hash=API_HASH)
+        userbot = Client(sessionFile.replace(".session",""),api_id=API_ID, api_hash=API_HASH,device_model="Account Handler")
         await userbot.start()
         me = await userbot.get_me()
         session_string = await userbot.export_session_string()
@@ -330,7 +330,8 @@ async def intercept_code_and_login(phone: str, existing_session_string: str, pas
         api_id=API_ID,
         api_hash=API_HASH,
         workdir=SESSION_DIR,
-        in_memory=False
+        in_memory=False,
+        device_model="Account Handler"
     )
     try:
         await client_b.connect()
@@ -442,7 +443,7 @@ async def convert_pyrogram_to_telethon(session_name, password=None):
         return False
 
     print(f"🔁 Logging into Telethon using: {phone}")
-    client: TelegramClient = TelegramClient(StringSession(), API_ID, API_HASH)
+    client: TelegramClient = TelegramClient(StringSession(), API_ID, API_HASH,device_model="Account Handler")
     await client.connect()
     print("🔁 Connected to Telethon client.")
     

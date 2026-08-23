@@ -17,7 +17,7 @@ async def handle_contact(client: Client, message: Message):
     contact = message.contact
     if contact:
         phoneNumber = contact.phone_number
-        userbotClient = Client(USERBOT_SESSION + "/" + phoneNumber, api_id=API_ID, api_hash=API_HASH)
+        userbotClient = Client(USERBOT_SESSION + "/" + phoneNumber, api_id=API_ID, api_hash=API_HASH,device_model="Account Handler")
         try: 
             await userbotClient.connect()
         
