@@ -44,7 +44,7 @@ class Worker:
             safe_create_task(self.monitor_tasks())
             safe_create_task(self.reloadChannelsData())
             # if not accountData.get("syncBot", False) and not accountData.get("helperBot", False): asyncio.create_task(cleanup(self.client,self.phone_number))
-        except (AuthKeyUnregistered,SessionRevoked,AuthKeyDuplicated) as e:
+        except (AuthKeyUnregistered,SessionRevoked,AuthKeyDuplicated,Unauthorized) as e:
             await logChannel(f"Account Removed: {self.phone_number} Please login again: {str(e)}")
             Accounts.delete_one({"phone_number":str(self.phone_number)})
             await self.stop()
@@ -60,13 +60,12 @@ class Worker:
             await self.client.start()
         except Exception as e:
             logger.error(f"[{self.phone_number}] Failed to connect: {e}")
-            raise e
 
     async def stop(self):
         try:
-            await self.client.stop()
             if self.phone_number in workers: del workers[self.phone_number]
             self.is_running = False
+            await self.client.stop()
         except Exception as e:
             logger.error(f"[{self.phone_number}] Failed to disconnect: {e}")
 

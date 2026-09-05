@@ -147,7 +147,9 @@ async def joinVc(task,client: Client,phone_number,self,taskID):
     except ChannelInvalid:
         await client.join_chat(inviteLink)
         await self.add_task(task, None)
-    except (ChatAdminRequired, GroupcallForbidden):
+    except ChannelsTooMuch: 
+        await logChannel(f"Account {phone_number} has joined too many channels. Please leave some channels and try again.")
+    except (ChatAdminRequired, GroupcallForbidden,GroupCallInvalid):
         pass
     except (ntgcalls.ConnectionError, ntgcalls.ConnectionNotFound, ntgcalls.TelegramServerError):
         pass

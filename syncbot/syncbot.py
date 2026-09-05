@@ -221,7 +221,7 @@ async def handle_voice_chats(event):
     update: UpdateGroupCall = event
     if (not isinstance(update, UpdateGroupCall) and not isinstance(update,UpdateNewChannelMessage)): return
     if isinstance(update.call, GroupCallDiscarded): return
-    channel_id = update.chat_id
+    channel_id = update.peer.channel_id
     channel_id = int("-100" + str(channel_id)) if not str(channel_id).startswith("-") else int(channel_id)
     call_id = update.call.id
     access_hash = update.call.access_hash
