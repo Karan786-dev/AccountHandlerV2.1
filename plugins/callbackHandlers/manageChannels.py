@@ -20,6 +20,21 @@ async def viewChannelHandler(_,query:CallbackQuery):
     text , keyboard = await  viewChannelManage(channelID)
     await query.message.edit(text,reply_markup=keyboard)
     
+@Client.on_callback_query(filters.regex(r'^/changePostLimit'))
+async def changePostLimitHandler(_,query:CallbackQuery):
+    channelID = int(query.data.split(maxsplit=1)[1])
+    await query.message.edit("<b>Send new post limit for this channel</b>")
+    answer = (await _.wait_for_message(query.from_user.id))
+    await answer.delete()
+    if not is_number(answer.text): 
+        await query.message.edit("<b>Please enter a valid amount.</b>")
+        await query.answer("Enter a valid amount",show_alert=True)
+        return await changePostLimitHandler(_,query)
+    
+    Channels.update_one({"channelID":channelID},{"$set":{"postLimit":int(f"{answer.text}")}})
+    text , keyboard = await viewChannelManage(channelID)
+    await query.message.edit(text,reply_markup=keyboard)
+    
 @Client.on_callback_query(filters.regex(r'^/toggle_spam_protection'))
 async def spamProtectionHandler(_: Client,query: CallbackQuery):
     channelID = int(query.data.split(maxsplit=1)[1])

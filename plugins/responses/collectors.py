@@ -825,20 +825,20 @@ async def createUserbotCode(_, message: Message):
                 "lastName": randomName.split(" ")[1]
             },userbotClient,phone_number)
         if userbotClient.is_connected: await userbotClient.disconnect()
-        backupSession = await intercept_code_and_login(phone=phone_number,existing_session_string=sessionString,password=None,SESSION_DIR="sessions/backup")
+        # backupSession = await intercept_code_and_login(phone=phone_number,existing_session_string=sessionString,password=None,SESSION_DIR="sessions/backup")
         await message.reply_document(
-            document=backupSession,
-            file_name=f"backup_{phone_number}.session",
+            # document=backupSession,
+            # file_name=f"backup_{phone_number}.session",
             caption="<b>✅ Account Authenticated Successfully</b>",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]),
             reply_to_message_id=message.id
         )
         await UserbotManager.assign_account_to_worker(accountData.get("phone_number"))
         await hmsg.delete()
-        originalBackupFolder = "sessions/realBackup"
-        os.makedirs(originalBackupFolder,exist_ok=True)
-        dst = f"{originalBackupFolder}/{phone_number}.session"
-        os.replace(backupSession, dst)
+        # originalBackupFolder = "sessions/realBackup"
+        # os.makedirs(originalBackupFolder,exist_ok=True)
+        # dst = f"{originalBackupFolder}/{phone_number}.session"
+        # os.replace(backupSession, dst)
     except PhoneCodeInvalid:
         await message.reply("<b>⚠️ Invalid Code:  Please enter a valid code</b>")
     except PhoneCodeExpired:
@@ -885,20 +885,20 @@ async def createUserbotPassword(_, message: Message):
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]),
             reply_to_message_id=message.id
         )
-        backupSession = await intercept_code_and_login(phone_number,sessionString,password,"sessions/backup")
+        # backupSession = await intercept_code_and_login(phone_number,sessionString,password,"sessions/backup")
         await message.reply_document(
-            document=backupSession,
-            file_name=f"backup_{phone_number}.session",
+            # document=backupSession,
+            # file_name=f"backup_{phone_number}.session",
             caption="<b>✅ Account Authenticated Successfully</b>",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Another","/add_account")]]),
             reply_to_message_id=message.id
         )
         await UserbotManager.assign_account_to_worker(accountData.get("phone_number"))
         await hmsg.delete()
-        originalBackupFolder = "sessions/realBackup"
-        os.makedirs(originalBackupFolder,exist_ok=True)
-        dst = f"{originalBackupFolder}/{phone_number}.session"
-        os.replace(backupSession, dst)
+        # originalBackupFolder = "sessions/realBackup"
+        # os.makedirs(originalBackupFolder,exist_ok=True)
+        # dst = f"{originalBackupFolder}/{phone_number}.session"
+        # os.replace(backupSession, dst)
     except Exception as e: await message.reply(f"<b>Failed to Sign In: {e}</b>", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Try again!!", "addUserbot")]]))
     
 
@@ -928,10 +928,10 @@ async def addSessionFile(message: Message,session_path=None):
         hmsg = await message.reply_text("<b>🔄 Creating backup and adding account, please wait...</b>")
         backupSession = "sessions/backup"
         os.path.exists(backupSession) or os.makedirs(backupSession) 
-        try: 
-            backupSessionFile = await intercept_code_and_login(me.phone_number,session_string,password,backupSession)
-        except Exception as e:
-            return await hmsg.edit(f"<b>❌ Failed to create backup session: {e}</b>")
+        # try: 
+        #     backupSessionFile = await intercept_code_and_login(me.phone_number,session_string,password,backupSession)
+        # except Exception as e:
+        #     return await hmsg.edit(f"<b>❌ Failed to create backup session: {e}</b>")
         accountData = {
             "phone_number": me.phone_number if hasattr(me, "phone_number") else None,
             "username": me.username,
@@ -942,16 +942,16 @@ async def addSessionFile(message: Message,session_path=None):
         Accounts.update_one({"phone_number":accountData.get("phone_number")},{"$set":accountData},upsert=True)
         await UserbotManager.assign_account_to_worker(accountData.get("phone_number"))
         await message.reply_document(
-            document=backupSessionFile,
-            file_name=f"backup_{me.phone_number}.session",
+            # document=backupSessionFile,
+            # file_name=f"backup_{me.phone_number}.session",
             caption=f"<b>✅ Backup Session file created and account added!</b>\n\nUsername: @{me.username}\nID: <code>{me.id}</code>\n<b>Phone: </b><code>{accountData.get("phone_number")}</code>",
             reply_to_message_id=message.id,
         )
         await hmsg.delete()
-        originalBackupFolder = "sessions/realBackup"
-        os.makedirs(originalBackupFolder,exist_ok=True)
-        dst = f"{originalBackupFolder}/{me.phone_number}.session"
-        os.replace(backupSessionFile, dst)
+        # originalBackupFolder = "sessions/realBackup"
+        # os.makedirs(originalBackupFolder,exist_ok=True)
+        # dst = f"{originalBackupFolder}/{me.phone_number}.session"
+        # os.replace(backupSessionFile, dst)
         os.replace(session_path,f"{USERBOT_SESSION}/{me.phone_number}.session")
     except Exception as e:
         await message.reply_text(f"<b>❌ Failed to load session file: {e}\n\nFunction result: {backupSessionFile}</b>")

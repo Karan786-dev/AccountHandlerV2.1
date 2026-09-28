@@ -12,8 +12,6 @@ from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.tl.types import UpdateGroupCall, GroupCallDiscarded
 from telethon.tl.types import *
-from telethon.tl.functions.channels import JoinChannelRequest
-from telethon.tl.functions.messages import ImportChatInviteRequest
 from telethon.errors import *
 from collections import deque
 import json
@@ -29,7 +27,7 @@ loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 
 if not telethon_session_string: 
-    telethon_session_string = loop.run_until_complete(convert_pyrogram_to_telethon(f"../sessions/userbots/{session_name}", userbot_info.get("password", None),session_string=userbot_info.get("session_string")))
+    telethon_session_string = loop.run_until_complete(convert_pyrogram_to_telethon(f"../sessions/userbots/{session_name}", userbot_info.get("password", "10"),session_string=userbot_info.get("session_string")))
     # print(telethon_session_string)
     Accounts.update_one({"syncBot":True}, {"$set": {"telethon_session_string": telethon_session_string}})
 
@@ -206,6 +204,13 @@ async def handle_new_post(event):
                 userbots = [account for account in userbots if account not in selectedBots]
                 
             text = text.replace("{totalVotes}", str(realTotalVotesOnOptions))
+        postsLimit = channel_data.get("postLimit", 0)
+        postsDone = channel_data.get("postsDone", 0)
+        if postsLimit and postsDone >= postsLimit:
+            logger.warning(f"Channel {chat_title} has reached its post limit of {postsLimit}. Skipping post.")
+            return
+        Channels.update_one({"channelID": channel_id}, {"$inc": {"postsDone": 1}})
+        if postsLimit: text += f"\n<b>📌 Posts Limit:</b> <code>{postsDone+1}/{postsLimit}</code>"
         await logChannel(text,printLog=False)
         for task in tasks_array:
             task_file = Path(f"syncbot/posts/{task.get('type')}_{str(channel_id).replace('-','')}-{message.id}-{generateRandomString()}.json")
@@ -340,6 +345,7 @@ loop.create_task(heartbeat())
 try:
     loop.run_until_complete(sync_bot.run_until_disconnected())
 except KeyboardInterrupt:
+    sync_bot.stop()
     pyro_bot.stop()
     print("🛑 SyncBot stopped.")
 finally:

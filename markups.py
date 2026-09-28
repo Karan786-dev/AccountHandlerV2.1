@@ -314,6 +314,7 @@ async def viewChannelManage(channelID, channelData=0):
         f"🔗 <b>Invite Link:</b> <a href='{channelLink}'>{channelLink}</a>\n\n"
         f"🔒 <b>Spam Protection:</b> {'✅ Enabled' if spamProtection else '❎ Disabled'}\n"
         f"⏳ <b>Validity:</b> {f"{'Expired!' if (not daysLeft) and validity else ('♾️ Permanent' if not validity else f'⌛ Temporary [{daysLeft} days left]')}"}\n\n"
+        f"Posts Limit: <b>{channelData.get('postLimit', 0)}</b>\n"
     )
 
 
@@ -326,6 +327,7 @@ async def viewChannelManage(channelID, channelData=0):
             InlineKeyboardButton(f"➕ Add Days",f"/add_days {channelID}")],
             [InlineKeyboardButton(f"🔒 {"Enable" if not spamProtection else "Disable"} Spam Protection", callback_data=f"/toggle_spam_protection {channelID}")],
             [InlineKeyboardButton("⚙️ Auto Services", callback_data=f"/channelServices {channelID}")],
+            [InlineKeyboardButton("Post Limit", callback_data=f"/changePostLimit {channelID}")],
             [InlineKeyboardButton("🚫 Restricted Keyworks",callback_data=f"/restricted_keys {channelID}")],
             [InlineKeyboardButton("🗑 Remove Channel", callback_data=f"/removeChannel {channelID}")],
             [InlineKeyboardButton("🔙 Back", callback_data="/manageChannels 1")]
